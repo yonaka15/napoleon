@@ -5,3 +5,31 @@ edition = "2024"
 
 [dependencies]
 bevy = "0.16.0"
+log = { version = "0.4", features = ["max_level_debug", "release_max_level_warn"] }
+
+[features]
+dev = ["bevy/dynamic_linking", "bevy/file_watcher", "bevy/asset_processor"]
+
+# Based on https://github.com/bevyengine/bevy/blob/main/docs/cargo_optimization.md
+# and https://github.com/tbillington/bevy_best_practices
+[profile.dev]
+opt-level = 1 
+debug = 0 
+strip = "debuginfo"
+# overflow-checks = false
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+opt-level = 3
+panic = 'abort'
+debug = 0
+strip = "debuginfo"
+# lto = "thin"
+
+[profile.distribution]
+inherits = "release"
+strip = true
+lto = "thin"
+codegen-units = 1
