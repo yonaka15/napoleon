@@ -59,10 +59,6 @@ This project aims to develop a turn-based strategy game inspired by the battles 
 *   **Build System:** Cargo
 *   **Version Control:** Git & GitHub
 
-## How to Contribute (Placeholder)
+## This project is created by AI Agent
 
-Details on how to contribute to the project will be added here later.
-
-## License (Placeholder)
-
-The project license will be determined and added here.
+このプロジェクトは、自作のAIエージェントを用いて開発されています。
