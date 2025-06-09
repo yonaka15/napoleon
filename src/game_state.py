@@ -1,8 +1,8 @@
 
 from typing import Dict, List, Optional, Set, Tuple
 from army_unit import ArmyUnit 
-from game_enums import UnitType, DiplomaticStatus # Import DiplomaticStatus
-from faction import Faction # Import Faction
+from game_enums import UnitType, DiplomaticStatus 
+from faction import Faction 
 import math 
 import random 
 
@@ -16,25 +16,23 @@ class GameState:
     def __init__(self, game_map_obj): 
         self.current_turn = 1
         self.game_map = game_map_obj 
-        self.factions: Dict[str, Faction] = {} # Type hint Faction
+        self.factions: Dict[str, Faction] = {} 
         self.generals: Dict[str, any] = {} 
         self.army_units: Dict[str, ArmyUnit] = {} 
         self.player_faction_id: Optional[str] = None
         self.allowed_building_types = ["market", "barracks"]
 
-    def add_faction(self, faction_obj: Faction): # Type hint Faction
+    def add_faction(self, faction_obj: Faction):
         self.factions[faction_obj.faction_id] = faction_obj
-        # Initialize diplomatic relations with other existing factions as PEACE
         for other_faction_id in self.factions:
             if other_faction_id != faction_obj.faction_id:
                 if other_faction_id not in faction_obj.diplomatic_relations:
                     self.set_diplomatic_status(faction_obj.faction_id, other_faction_id, DiplomaticStatus.PEACE, 0)
-                # Ensure other faction also has relation initialized (bidirectional)
                 other_faction = self.factions[other_faction_id]
                 if faction_obj.faction_id not in other_faction.diplomatic_relations:
                      self.set_diplomatic_status(other_faction_id, faction_obj.faction_id, DiplomaticStatus.PEACE, 0)
 
-    def get_faction(self, faction_id: str) -> Optional[Faction]: # Type hint Faction
+    def get_faction(self, faction_id: str) -> Optional[Faction]: 
         return self.factions.get(faction_id)
 
     def add_general(self, general_obj):
@@ -95,6 +93,7 @@ class GameState:
                 city.garrisoned_units.append(unit_id)
 
     def display_summary(self):
+        # ... (no changes)
         print(f"--- Game State: Turn {self.current_turn} ---")
         print(f"Map: {self.game_map.map_id} with {len(self.game_map.cities)} cities.")
         if self.player_faction_id:
@@ -119,7 +118,7 @@ class GameState:
             print(f"- {str(unit_obj)}")
 
     def get_city_details_str(self, city_id: str) -> str:
-        # ... (implementation from previous step, no changes here)
+        # ... (no changes)
         city = self.game_map.get_city(city_id)
         if not city:
             return f"Error: City with ID '{city_id}' not found."
@@ -152,7 +151,7 @@ class GameState:
         return "\n".join(details)
 
     def get_general_details_str(self, general_id: str) -> str:
-        # ... (implementation from previous step, no changes here)
+        # ... (no changes)
         general = self.generals.get(general_id)
         if not general:
             return f"Error: General with ID '{general_id}' not found."
@@ -178,7 +177,7 @@ class GameState:
         return "\n".join(details)
 
     def get_faction_details_str(self, faction_id: str) -> str:
-        # ... (implementation from previous step, no changes here)
+        # ... (no changes)
         faction = self.factions.get(faction_id)
         if not faction:
             return f"Error: Faction with ID '{faction_id}' not found."
@@ -216,13 +215,19 @@ class GameState:
         details.append(f"Army Units: {army_units_str}")
         return "\n".join(details)
 
-    def move_unit(self, unit_id: str, target_city_id: str) -> str:
-        # ... (implementation from previous step, no changes here)
+    def move_unit(self, unit_id: str, target_city_id: str, acting_faction_id: Optional[str] = None) -> str:
         unit = self.army_units.get(unit_id)
         if not unit:
             return f"Error: Unit with ID '{unit_id}' not found."
-        if unit.owning_faction_id != self.player_faction_id:
-            return f"Error: Unit {unit_id} ({unit.unit_type_id}) is not yours to command. Belongs to {unit.owning_faction_id}."
+        
+        # Determine which faction is trying to move the unit
+        controller_faction_id = acting_faction_id if acting_faction_id else self.player_faction_id
+        if not controller_faction_id:
+             return f"Error: No controlling faction identified for move command."
+
+        if unit.owning_faction_id != controller_faction_id:
+            return f"Error: Unit {unit_id} ({unit.unit_type_id}) does not belong to {self.factions[controller_faction_id].short_name}. Cannot command."
+
         target_city = self.game_map.get_city(target_city_id)
         if not target_city:
             return f"Error: Target city with ID '{target_city_id}' not found."
@@ -241,10 +246,10 @@ class GameState:
         unit.current_location_city_id = target_city_id
         if unit_id not in target_city.garrisoned_units:
             target_city.garrisoned_units.append(unit_id)
-        return f"Unit {unit_id} ({unit.unit_type_id}) successfully moved from {current_city_obj.name} to {target_city.name}."
+        return f"Unit {unit_id} ({unit.unit_type_id}) successfully moved from {current_city_obj.name} to {target_city.name} by {self.factions[controller_faction_id].short_name}."
 
     def develop_building_in_city(self, city_id: str, building_type: str) -> str:
-        # ... (implementation from previous step, no changes here)
+        # ... (no changes)
         city = self.game_map.get_city(city_id)
         if not city:
             return f"Error: City with ID '{city_id}' not found."
@@ -253,7 +258,7 @@ class GameState:
         return f"{city.name} has started development of {building_type}. (Note: This is a prototype, actual construction not yet implemented.)"
 
     def recruit_unit(self, unit_type_str: str, city_id: str, general_id_str: Optional[str] = None) -> str:
-        # ... (implementation from previous step, no changes here)
+        # ... (no changes)
         city = self.game_map.get_city(city_id)
         if not city:
             return f"Error: City with ID '{city_id}' not found for recruitment."
@@ -293,30 +298,26 @@ class GameState:
         return recruit_msg
 
     def set_diplomatic_status(self, faction1_id: str, faction2_id: str, status: DiplomaticStatus, relation_value: int = 0):
+        # ... (no changes)
         f1 = self.factions.get(faction1_id)
         f2 = self.factions.get(faction2_id)
         if not f1 or not f2:
             print(f"ERROR: Cannot set diplomatic status between {faction1_id} and {faction2_id}. One or both factions not found.")
             return
         if faction1_id == faction2_id:
-             return # Cannot have diplomatic relations with oneself
-
+             return
         f1.diplomatic_relations[faction2_id] = {"status": status, "relation_value": relation_value, "treaties": []}
-        f2.diplomatic_relations[faction1_id] = {"status": status, "relation_value": relation_value, "treaties": []} # Bidirectional
-        # print(f"DEBUG: Set diplomacy: {f1.short_name} and {f2.short_name} are now {status.value} (Relation: {relation_value})")
+        f2.diplomatic_relations[faction1_id] = {"status": status, "relation_value": relation_value, "treaties": []}
 
     def get_diplomacy_summary_str(self, focus_faction_id_param: Optional[str] = None) -> str:
+        # ... (no changes)
         focus_faction_id = focus_faction_id_param if focus_faction_id_param else self.player_faction_id
-        
         if not focus_faction_id or focus_faction_id not in self.factions:
             return f"Error: Focus faction ID '{focus_faction_id}' not found or player faction not set."
-
         focus_faction = self.factions[focus_faction_id]
         summary_lines = [f"--- Diplomatic Relations for {focus_faction.name} (ID: {focus_faction_id}) ---"]
-
         if not focus_faction.diplomatic_relations:
             summary_lines.append("  No diplomatic relations established yet.")
-        
         for target_faction_id, relations in sorted(focus_faction.diplomatic_relations.items()):
             target_faction = self.factions.get(target_faction_id)
             if target_faction:
@@ -329,7 +330,7 @@ class GameState:
         return "\n".join(summary_lines)
 
     def _calculate_effective_stats(self, unit: ArmyUnit, is_defending_in_city: bool) -> Tuple[float, float, float]:
-        # ... (implementation from previous step, no changes here)
+        # ... (no changes)
         eff_attack = float(unit.base_attack)
         eff_defense = float(unit.base_defense)
         eff_soldiers_for_attack = float(unit.soldiers)
@@ -343,7 +344,7 @@ class GameState:
         return max(1.0, eff_attack), max(1.0, eff_defense), max(1.0, eff_soldiers_for_attack)
 
     def _resolve_battle_in_city(self, city_obj) -> List[str]:
-        # ... (implementation from previous step, no changes here)
+        # ... (no changes)
         battle_log = []
         present_unit_ids = list(city_obj.garrisoned_units)
         units_in_city = [self.army_units[uid] for uid in present_unit_ids if uid in self.army_units and self.army_units[uid].soldiers > 0]
@@ -435,6 +436,7 @@ class GameState:
         return battle_log
 
     def _resolve_all_city_battles(self):
+        # ... (no changes)
         all_battle_logs = []
         for city_id in list(self.game_map.cities.keys()): 
             city_obj = self.game_map.get_city(city_id)
@@ -448,17 +450,69 @@ class GameState:
                 print(log_entry)
             print("=========================")
 
+    def _process_ai_faction_turn(self, faction_id: str):
+        faction = self.factions.get(faction_id)
+        if not faction or faction_id == self.player_faction_id:
+            return
+
+        ai_log = [f"\n--- AI Turn: {faction.short_name} (ID: {faction_id}) ---"]
+        
+        # Basic AI: Try to move one random unit to a random adjacent city
+        movable_units = [u for u_id in faction.army_units_list_ids if (u := self.army_units.get(u_id)) and u.current_location_city_id and u.soldiers > 0]
+        
+        if movable_units:
+            unit_to_move = random.choice(movable_units)
+            current_city_id = unit_to_move.current_location_city_id
+            
+            if current_city_id and current_city_id in self.game_map.adjacency_list:
+                adjacent_city_ids = list(self.game_map.adjacency_list[current_city_id])
+                if adjacent_city_ids:
+                    target_city_id = random.choice(adjacent_city_ids)
+                    ai_log.append(f"  AI {faction.short_name} attempts to move unit {unit_to_move.unit_id} from {current_city_id} to {target_city_id}.")
+                    move_result = self.move_unit(unit_to_move.unit_id, target_city_id, acting_faction_id=faction_id)
+                    ai_log.append(f"    Move Result: {move_result}")
+                else:
+                    ai_log.append(f"  AI {faction.short_name}: Unit {unit_to_move.unit_id} in {current_city_id} has no adjacent cities to move to.")
+            else:
+                 ai_log.append(f"  AI {faction.short_name}: Unit {unit_to_move.unit_id} is not in a valid city or city has no adjacencies.")
+        else:
+            ai_log.append(f"  AI {faction.short_name} has no movable units this turn.")
+        
+        # Print AI logs if any actions were attempted
+        if len(ai_log) > 1:
+            for entry in ai_log:
+                print(entry)
+
     def next_turn(self):
         self.current_turn += 1
         print(f"\n--- Advanced to Turn {self.current_turn} ---")
-        for faction_obj in self.factions.values():
+        
+        # Player Faction Income (example)
+        if self.player_faction_id and self.player_faction_id in self.factions:
+            player_faction_obj = self.factions[self.player_faction_id]
             income = 0
-            for city_id_in_faction in list(faction_obj.controlled_cities_ids):
+            for city_id_in_faction in list(player_faction_obj.controlled_cities_ids):
                 city = self.game_map.get_city(city_id_in_faction)
                 if city:
                     income += city.economy // 10 
-            faction_obj.treasury += income
-            if faction_obj.faction_id == self.player_faction_id:
-                 print(f"  {faction_obj.short_name} received {income} gold. Treasury: {faction_obj.treasury}")
+            player_faction_obj.treasury += income
+            print(f"  {player_faction_obj.short_name} received {income} gold. Treasury: {player_faction_obj.treasury}")
+
+        # AI Faction Turns (Movement & other AI logic will go here)
+        print("\n-- AI Factions Processing --")
+        for faction_id_ai in self.factions:
+            if faction_id_ai != self.player_faction_id:
+                self._process_ai_faction_turn(faction_id_ai)
+                # AI Income (can be different from player or follow same rules)
+                ai_faction_obj = self.factions[faction_id_ai]
+                ai_income = 0
+                for city_id_ai in list(ai_faction_obj.controlled_cities_ids):
+                    city_ai = self.game_map.get_city(city_id_ai)
+                    if city_ai:
+                        ai_income += city_ai.economy // 10 # Example, can be different for AI
+                ai_faction_obj.treasury += ai_income
+                # print(f"  AI {ai_faction_obj.short_name} received {ai_income} gold. Treasury: {ai_faction_obj.treasury}") # Optional: Log AI income
+        print("--------------------------")
+
         self._resolve_all_city_battles()
 
