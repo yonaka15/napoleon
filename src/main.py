@@ -15,11 +15,24 @@ def setup_initial_state() -> GameState:
     london = City(city_id="london", name="London", region_id="greater_london")
     vienna = City(city_id="vienna", name="Vienna", region_id="austria_proper")
     berlin = City(city_id="berlin", name="Berlin", region_id="brandenburg")
+    marseille = City(city_id="marseille", name="Marseille", region_id="provence") # New city for adjacency
+    lyon = City(city_id="lyon", name="Lyon", region_id="rhone_alpes")             # New city for adjacency
 
     europe_map.add_city(paris)
     europe_map.add_city(london)
     europe_map.add_city(vienna)
     europe_map.add_city(berlin)
+    europe_map.add_city(marseille) # Add new city to map
+    europe_map.add_city(lyon)      # Add new city to map
+
+    # Define Adjacencies
+    europe_map.add_adjacency("paris", "lyon")
+    europe_map.add_adjacency("lyon", "marseille")
+    europe_map.add_adjacency("paris", "berlin") # For testing direct long move before adjacency check
+    europe_map.add_adjacency("berlin", "vienna")
+    # paris <-> london = NOT adjacent in this setup
+    # paris <-> vienna = NOT directly adjacent
+    # lyon <-> berlin = NOT adjacent
 
     # 3. Create Game State
     game = GameState(game_map_obj=europe_map)
@@ -38,6 +51,8 @@ def setup_initial_state() -> GameState:
 
     # 5. Assign cities to factions
     game.assign_city_to_faction("paris", "france")
+    game.assign_city_to_faction("lyon", "france")      # Lyon to France
+    game.assign_city_to_faction("marseille", "france") # Marseille to France
     game.assign_city_to_faction("london", "britain")
     game.assign_city_to_faction("vienna", "austria")
     game.assign_city_to_faction("berlin", "prussia")
@@ -61,24 +76,27 @@ def setup_initial_state() -> GameState:
 
     # 7. Place Generals in cities
     game.place_general_in_city("napoleon", "paris")
-    game.place_general_in_city("davout", "paris")
+    game.place_general_in_city("davout", "lyon") # Davout in Lyon
     game.place_general_in_city("nelson", "london")
     game.place_general_in_city("archduke_charles", "vienna")
     game.place_general_in_city("blucher", "berlin")
 
     # 8. Create Army Units and add to game state
     fra_corps_1 = ArmyUnit(unit_id="fra_corps_1", unit_type_id="infantry_corps", owning_faction_id="france", soldiers=25000, leading_general_id="davout")
+    fra_guard = ArmyUnit(unit_id="fra_guard", unit_type_id="guard_corps", owning_faction_id="france", soldiers=15000, leading_general_id="napoleon")
     bri_fleet_1 = ArmyUnit(unit_id="bri_fleet_1", unit_type_id="fleet_channel", owning_faction_id="britain", soldiers=100)
     aus_army_1 = ArmyUnit(unit_id="aus_army_1", unit_type_id="infantry_division", owning_faction_id="austria", soldiers=30000, leading_general_id="archduke_charles")
     pru_corps_1 = ArmyUnit(unit_id="pru_corps_1", unit_type_id="infantry_corps", owning_faction_id="prussia", soldiers=22000, leading_general_id="blucher")
 
     game.add_army_unit(fra_corps_1)
+    game.add_army_unit(fra_guard)
     game.add_army_unit(bri_fleet_1)
     game.add_army_unit(aus_army_1)
     game.add_army_unit(pru_corps_1)
 
     # 9. Place units in cities
-    game.place_unit_in_city("fra_corps_1", "paris")
+    game.place_unit_in_city("fra_corps_1", "lyon") # Davout's corps in Lyon
+    game.place_unit_in_city("fra_guard", "paris")   # Guard in Paris with Napoleon
     game.place_unit_in_city("bri_fleet_1", "london")
     game.place_unit_in_city("aus_army_1", "vienna")
     game.place_unit_in_city("pru_corps_1", "berlin")
@@ -91,7 +109,7 @@ def game_loop(game_state: GameState):
     print("  info city <city_id>                - Show details for a city (e.g., info city paris)")
     print("  info general <gen_id>              - Show details for a general (e.g., info general napoleon)")
     print("  info faction <faction_id>          - Show details for a faction (e.g., info faction france)")
-    print("  move unit <unit_id> to <city_id>   - Move a unit to another city (e.g., move unit fra_corps_1 to berlin)")
+    print("  move unit <unit_id> to <city_id>   - Move a unit to an ADJACENT city (e.g., move unit fra_corps_1 to paris)")
     print("  develop city <id> <building_type>  - Start development in a city (e.g., develop city paris market). Allowed types: market, barracks")
     print("  summary                          - Display current game state summary")
     print("  next turn                        - Advance to the next turn")
@@ -141,7 +159,7 @@ def game_loop(game_state: GameState):
 
 
 if __name__ == "__main__":
-    print("Setting up Napoleon Game Prototype v0.1.4 (with develop city command prototype)...")
+    print("Setting up Napoleon Game Prototype v0.1.5 (with map adjacency)...")
     current_game_state = setup_initial_state()
     print("\n--- Initial Game State Summary ---")
     current_game_state.display_summary()
