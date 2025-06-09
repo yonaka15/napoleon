@@ -56,7 +56,7 @@ class GameState:
         city = self.game_map.get_city(city_id)
         if unit and city:
             unit.current_location_city_id = city_id
-            if unit_id not in city.garrisoned_units:
+            if unit_id not in city.garrisoned_units: # Ensure garrison list exists
                 city.garrisoned_units.append(unit_id)
 
 
@@ -64,7 +64,9 @@ class GameState:
         print(f"--- Game State: Turn {self.current_turn} ---")
         print(f"Map: {self.game_map.map_id} with {len(self.game_map.cities)} cities.")
         if self.player_faction_id:
-            print(f"Player is controlling: {self.factions.get(self.player_faction_id).name}")
+            player_faction = self.factions.get(self.player_faction_id)
+            if player_faction:
+                 print(f"Player is controlling: {player_faction.name}")
 
         print("\nFactions:")
         for faction_id, faction_obj in self.factions.items():
@@ -95,6 +97,38 @@ class GameState:
             if unit_obj.owning_faction_id and unit_obj.owning_faction_id in self.factions:
                 faction_name = self.factions[unit_obj.owning_faction_id].short_name
             print(f"- Unit {unit_id} ({unit_obj.unit_type_id}), Faction: {faction_name}, Location: {unit_obj.current_location_city_id or 'Field'}, Soldiers: {unit_obj.soldiers}")
+
+    def get_city_details_str(self, city_id: str) -> str:
+        city = self.game_map.get_city(city_id)
+        if not city:
+            return f"Error: City with ID '{city_id}' not found."
+
+        details = [f"--- City Details: {city.name} (ID: {city_id}) ---"]
+        details.append(f"Region: {city.region_id}")
+        owner_name = "Unowned"
+        if city.current_owner_faction_id:
+            faction = self.factions.get(city.current_owner_faction_id)
+            if faction:
+                owner_name = f"{faction.name} (ID: {faction.faction_id})"
+        details.append(f"Owner: {owner_name}")
+        details.append(f"Population: {city.population}")
+        details.append(f"Economy: {city.economy}")
+        details.append(f"Industry: {city.industry}")
+        
+        garrison_str = "None"
+        if city.garrisoned_units:
+            garrison_details = []
+            for unit_id in city.garrisoned_units:
+                unit = self.army_units.get(unit_id)
+                if unit:
+                    garrison_details.append(f"  - {unit.unit_id} ({unit.unit_type_id}, {unit.soldiers} soldiers)")
+                else:
+                    garrison_details.append(f"  - {unit_id} (Error: Unit details not found)")
+            if garrison_details:
+                 garrison_str = "\n" + "\n".join(garrison_details)
+        details.append(f"Garrison: {garrison_str}")
+        
+        return "\n".join(details)
 
     def next_turn(self):
         self.current_turn += 1
