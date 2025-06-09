@@ -92,6 +92,7 @@ def game_loop(game_state: GameState):
     print("  info general <gen_id>              - Show details for a general (e.g., info general napoleon)")
     print("  info faction <faction_id>          - Show details for a faction (e.g., info faction france)")
     print("  move unit <unit_id> to <city_id>   - Move a unit to another city (e.g., move unit fra_corps_1 to berlin)")
+    print("  develop city <id> <building_type>  - Start development in a city (e.g., develop city paris market). Allowed types: market, barracks")
     print("  summary                          - Display current game state summary")
     print("  next turn                        - Advance to the next turn")
     print("  exit                             - Exit the game")
@@ -129,12 +130,18 @@ def game_loop(game_state: GameState):
             print(game_state.move_unit(unit_id_to_move, target_city_id_for_move))
         elif action == "move" and (len(parts) < 5 or parts[1] != "unit" or parts[3] != "to"):
              print("Invalid move command. Format: move unit <unit_id> to <target_city_id>")
+        elif action == "develop" and len(parts) == 4 and parts[1] == "city":
+            city_id_to_develop = parts[2]
+            building_type_to_develop = parts[3]
+            print(game_state.develop_building_in_city(city_id_to_develop, building_type_to_develop))
+        elif action == "develop" and (len(parts) < 4 or parts[1] != "city"):
+            print("Invalid develop command. Format: develop city <city_id> <building_type>")
         else:
             print(f"Unknown command: '{command_input}'. Type 'help' for a list of commands (not yet implemented, use displayed list).")
 
 
 if __name__ == "__main__":
-    print("Setting up Napoleon Game Prototype v0.1.3 (with move unit command)...")
+    print("Setting up Napoleon Game Prototype v0.1.4 (with develop city command prototype)...")
     current_game_state = setup_initial_state()
     print("\n--- Initial Game State Summary ---")
     current_game_state.display_summary()
@@ -142,3 +149,4 @@ if __name__ == "__main__":
     game_loop(current_game_state)
 
     print("\nPrototype simulation finished.")
+
