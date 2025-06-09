@@ -19,10 +19,8 @@ class UnitType(Enum):
     CAVALRY_SQUADRON = ("cavalry_squadron", 30, 15, 5000) 
     ARTILLERY_BATTERY = ("artillery_battery", 40, 10, 2000) 
     MILITIA = ("militia", 15, 10, 10000)
-    
-    # For existing units in setup, to be aligned or phased out
-    FLEET_CHANNEL = ("fleet_channel", 50, 30, 100) # Placeholder, naval combat is different
-    INFANTRY_DIVISION = ("infantry_division", 20, 20, 30000) # Generic division, used by Austria initially
+    FLEET_CHANNEL = ("fleet_channel", 50, 30, 100) 
+    INFANTRY_DIVISION = ("infantry_division", 20, 20, 30000)
 
     def __init__(self, type_id_str, base_attack, base_defense, default_soldiers):
         self._type_id_str = type_id_str
@@ -51,5 +49,21 @@ class UnitType(Enum):
         s_lower = s.lower()
         for member in cls:
             if member.type_id == s_lower:
+                return member
+        return None
+
+class DiplomaticStatus(Enum):
+    WAR = "War"
+    PEACE = "Peace"
+    ALLIANCE = "Alliance"
+    TRUCE = "Truce"
+    TRADE_AGREEMENT = "Trade Agreement"
+    VASSALAGE = "Vassalage" # Future use
+
+    @classmethod
+    def from_string(cls, s: str):
+        s_cap = s.capitalize()
+        for member in cls:
+            if member.value == s_cap or member.name == s.upper():
                 return member
         return None
