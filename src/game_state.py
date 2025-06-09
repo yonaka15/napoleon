@@ -1,4 +1,4 @@
-'''
+
 from typing import Dict, List, Optional
 # from faction import Faction
 # from general import General
@@ -71,10 +71,10 @@ class GameState:
         print("\nFactions:")
         for faction_id, faction_obj in self.factions.items():
             print(f"- {faction_obj.name} (ID: {faction_id})")
-            print(f"  Capital: {faction_obj.capital_city_id or 'N/A'}, Treasury: {faction_obj.treasury}")
-            print(f"  Cities: {faction_obj.controlled_cities_ids}")
-            print(f"  Generals: {faction_obj.generals_list_ids}")
-            print(f"  Units: {faction_obj.army_units_list_ids}")
+            # print(f"  Capital: {faction_obj.capital_city_id or 'N/A'}, Treasury: {faction_obj.treasury}")
+            # print(f"  Cities: {faction_obj.controlled_cities_ids}")
+            # print(f"  Generals: {faction_obj.generals_list_ids}")
+            # print(f"  Units: {faction_obj.army_units_list_ids}")
 
 
         print("\nCities:")
@@ -82,7 +82,7 @@ class GameState:
             owner_name = "Unowned"
             if city_obj.current_owner_faction_id and city_obj.current_owner_faction_id in self.factions:
                 owner_name = self.factions[city_obj.current_owner_faction_id].short_name
-            print(f"- {city_obj.name} (ID: {city_id}), Owner: {owner_name}, Garrison: {city_obj.garrisoned_units}")
+            print(f"- {city_obj.name} (ID: {city_id}), Owner: {owner_name}") # Simplified summary
 
         print("\nGenerals:")
         for general_id, general_obj in self.generals.items():
@@ -130,9 +130,88 @@ class GameState:
         
         return "\n".join(details)
 
+    def get_general_details_str(self, general_id: str) -> str:
+        general = self.generals.get(general_id)
+        if not general:
+            return f"Error: General with ID '{general_id}' not found."
+
+        details = [f"--- General Details: {general.name} (ID: {general_id}) ---"]
+        faction_name = "None"
+        if general.faction_id:
+            faction = self.factions.get(general.faction_id)
+            if faction:
+                faction_name = f"{faction.name} (ID: {faction.faction_id})"
+        details.append(f"Faction: {faction_name}")
+        details.append(f"Command: {general.command}")
+        details.append(f"Attack Skill: {general.attack_skill}")
+        details.append(f"Defense Skill: {general.defense_skill}")
+        details.append(f"Loyalty: {general.loyalty}")
+        location_name = "Field (Not in a city)"
+        if general.current_location_city_id:
+            city = self.game_map.get_city(general.current_location_city_id)
+            if city:
+                location_name = f"{city.name} (ID: {city.city_id})"
+            else:
+                location_name = f"Unknown City (ID: {general.current_location_city_id})"
+        details.append(f"Current Location: {location_name}")
+        # Add more details like led units if implemented
+        return "\n".join(details)
+
+    def get_faction_details_str(self, faction_id: str) -> str:
+        faction = self.factions.get(faction_id)
+        if not faction:
+            return f"Error: Faction with ID '{faction_id}' not found."
+
+        details = [f"--- Faction Details: {faction.name} (ID: {faction_id}) ---"]
+        details.append(f"Short Name: {faction.short_name}")
+        leader_name = "None"
+        if faction.leader_general_id:
+            leader = self.generals.get(faction.leader_general_id)
+            if leader:
+                leader_name = f"{leader.name} (ID: {leader.general_id})"
+        details.append(f"Leader: {leader_name}")
+        capital_name = "None"
+        if faction.capital_city_id:
+            capital = self.game_map.get_city(faction.capital_city_id)
+            if capital:
+                capital_name = f"{capital.name} (ID: {capital.city_id})"
+        details.append(f"Capital: {capital_name}")
+        details.append(f"Treasury: {faction.treasury}")
+        details.append(f"Food Reserves: {faction.food_reserves}")
+        details.append(f"Manpower Pool: {faction.manpower_pool}")
+        
+        controlled_cities_str = "None"
+        if faction.controlled_cities_ids:
+            city_names = [self.game_map.get_city(c_id).name if self.game_map.get_city(c_id) else c_id for c_id in faction.controlled_cities_ids]
+            controlled_cities_str = ", ".join(city_names)
+        details.append(f"Controlled Cities: {controlled_cities_str}")
+
+        generals_str = "None"
+        if faction.generals_list_ids:
+            general_names = [self.generals.get(g_id).name if self.generals.get(g_id) else g_id for g_id in faction.generals_list_ids]
+            generals_str = ", ".join(general_names)
+        details.append(f"Generals: {generals_str}")
+
+        army_units_str = "None"
+        if faction.army_units_list_ids:
+            unit_descs = [f"{u_id} ({self.army_units.get(u_id).unit_type_id})" if self.army_units.get(u_id) else u_id for u_id in faction.army_units_list_ids]
+            army_units_str = ", ".join(unit_descs)
+        details.append(f"Army Units: {army_units_str}")
+        
+        return "\n".join(details)
+
     def next_turn(self):
         self.current_turn += 1
         print(f"\n--- Advanced to Turn {self.current_turn} ---")
+        # Example: Simple income for each faction
+        for faction_obj in self.factions.values():
+            income = 0
+            for city_id in faction_obj.controlled_cities_ids:
+                city = self.game_map.get_city(city_id)
+                if city:
+                    income += city.economy // 10 # Simple income based on economy
+            faction_obj.treasury += income
+            print(f"{faction_obj.short_name} received {income} gold. Treasury: {faction_obj.treasury}")
+
         # Add more turn processing logic here in the future
         # For example, resource collection, unit movement AI, etc.
-'''
