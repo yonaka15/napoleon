@@ -5,7 +5,7 @@ from general import General
 from army_unit import ArmyUnit
 from game_map import GameMap
 from game_state import GameState
-from game_enums import UnitType, DiplomaticStatus # Import DiplomaticStatus
+from game_enums import UnitType, DiplomaticStatus
 
 def setup_initial_state() -> GameState:
     # 1. Create Game Map
@@ -31,12 +31,14 @@ def setup_initial_state() -> GameState:
     europe_map.add_adjacency("lyon", "marseille")
     europe_map.add_adjacency("paris", "berlin")
     europe_map.add_adjacency("berlin", "vienna")
+    # For AI testing, ensure some paths for non-player factions
+    europe_map.add_adjacency("london", "paris") # To allow Britain to move to Paris for combat test
+    europe_map.add_adjacency("vienna", "lyon")  # To allow Austria to move towards French territory
 
     # 3. Create Game State
     game = GameState(game_map_obj=europe_map)
 
     # 4. Create Factions and add to game state
-    # Order matters for diplomacy init if not handled carefully
     france = Faction(faction_id="france", name="French Empire", short_name="France", capital_city_id="paris")
     game.add_faction(france)
     britain = Faction(faction_id="britain", name="Great Britain", short_name="Britain", capital_city_id="london")
@@ -95,20 +97,20 @@ def setup_initial_state() -> GameState:
 
     fra_corps_1 = ArmyUnit(unit_id="fra_corps_1", unit_type_id=ut_inf_corps.type_id, base_attack=ut_inf_corps.base_attack, base_defense=ut_inf_corps.base_defense, owning_faction_id="france", soldiers=ut_inf_corps.default_soldiers, leading_general_id="davout")
     fra_guard = ArmyUnit(unit_id="fra_guard", unit_type_id=ut_guard_corps.type_id, base_attack=ut_guard_corps.base_attack, base_defense=ut_guard_corps.base_defense, owning_faction_id="france", soldiers=ut_guard_corps.default_soldiers, leading_general_id="napoleon")
-    bri_fleet_1 = ArmyUnit(unit_id="bri_fleet_1", unit_type_id=ut_fleet.type_id, base_attack=ut_fleet.base_attack, base_defense=ut_fleet.base_defense, owning_faction_id="britain", soldiers=ut_fleet.default_soldiers, leading_general_id="nelson") 
+    bri_army_1 = ArmyUnit(unit_id="bri_army_1", unit_type_id=ut_inf_corps.type_id, base_attack=ut_inf_corps.base_attack, base_defense=ut_inf_corps.base_defense, owning_faction_id="britain", soldiers=18000, leading_general_id="nelson") # Britain land army
     aus_army_1 = ArmyUnit(unit_id="aus_army_1", unit_type_id=ut_inf_div.type_id, base_attack=ut_inf_div.base_attack, base_defense=ut_inf_div.base_defense, owning_faction_id="austria", soldiers=ut_inf_div.default_soldiers, leading_general_id="archduke_charles")
     pru_corps_1 = ArmyUnit(unit_id="pru_corps_1", unit_type_id=ut_inf_corps.type_id, base_attack=ut_inf_corps.base_attack, base_defense=ut_inf_corps.base_defense, owning_faction_id="prussia", soldiers=22000, leading_general_id="blucher")
 
     game.add_army_unit(fra_corps_1)
     game.add_army_unit(fra_guard)
-    game.add_army_unit(bri_fleet_1)
+    game.add_army_unit(bri_army_1) # Replaced fleet with an army for land movement test
     game.add_army_unit(aus_army_1)
     game.add_army_unit(pru_corps_1)
 
     # 9. Place units in cities
     game.place_unit_in_city("fra_corps_1", "lyon")
     game.place_unit_in_city("fra_guard", "paris")
-    game.place_unit_in_city("bri_fleet_1", "london")
+    game.place_unit_in_city("bri_army_1", "london")
     game.place_unit_in_city("aus_army_1", "vienna")
     game.place_unit_in_city("pru_corps_1", "berlin")
 
@@ -126,7 +128,7 @@ def game_loop(game_state: GameState):
     print("  recruit unit <u_type> in <city_id> [with <gen_id>] - Recruit a new unit in YOUR CAPITAL (e.g., recruit unit infantry_corps in paris with napoleon)")
     print("                                     Allowed unit types: infantry_corps, guard_corps, cavalry_squadron, artillery_battery, militia")
     print("  summary                          - Display current game state summary")
-    print("  next turn                        - Advance to the next turn (triggers auto-combat if applicable)")
+    print("  next turn                        - Advance to the next turn (triggers AI moves & auto-combat if applicable)")
     print("  exit                             - Exit the game")
 
     while True:
@@ -160,21 +162,18 @@ def game_loop(game_state: GameState):
             else:
                 print(f"Unknown or incomplete info command: 'info {sub_command} ...'. Supported: city <id>, general <id>, faction <id>, diplomacy [faction_id]")
         elif action == "move" and len(parts) == 5 and parts[1] == "unit" and parts[3] == "to":
-            # ... (move unit logic - no changes)
             unit_id_to_move = parts[2]
             target_city_id_for_move = parts[4]
             print(game_state.move_unit(unit_id_to_move, target_city_id_for_move))
         elif action == "move" and (len(parts) < 5 or parts[1] != "unit" or parts[3] != "to"):
              print("Invalid move command. Format: move unit <unit_id> to <target_city_id>")
         elif action == "develop" and len(parts) == 4 and parts[1] == "city":
-            # ... (develop city logic - no changes)
             city_id_to_develop = parts[2]
             building_type_to_develop = parts[3]
             print(game_state.develop_building_in_city(city_id_to_develop, building_type_to_develop))
         elif action == "develop" and (len(parts) < 4 or parts[1] != "city"):
             print("Invalid develop command. Format: develop city <city_id> <building_type>")
         elif action == "recruit" and len(parts) >= 5 and parts[1] == "unit" and parts[3] == "in":
-            # ... (recruit unit logic - no changes)
             unit_type_to_recruit = parts[2]
             city_id_for_recruit = parts[4]
             general_id_for_recruit = None
@@ -193,14 +192,10 @@ def game_loop(game_state: GameState):
 
 
 if __name__ == "__main__":
-    print("Setting up Napoleon Game Prototype v0.1.10 (with diplomacy info command)...")
+    print("Setting up Napoleon Game Prototype v0.1.11 (with basic AI unit movement)...")
     current_game_state = setup_initial_state()
     print("\n--- Initial Game State Summary ---")
     current_game_state.display_summary()
-
-    # Display initial diplomacy for the player
-    # print(current_game_state.get_diplomacy_summary_str())
-
     game_loop(current_game_state)
 
     print("\nPrototype simulation finished.")
