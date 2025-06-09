@@ -129,6 +129,10 @@ class GameState:
                  garrison_str = "\n" + "\n".join(garrison_details)
         details.append(f"Garrison: {garrison_str}")
         
+        adj_cities = self.game_map.adjacency_list.get(city_id, set())
+        adj_str = ", ".join(adj_cities) if adj_cities else "None"
+        details.append(f"Adjacent Cities: {adj_str}")
+
         return "\n".join(details)
 
     def get_general_details_str(self, general_id: str) -> str:
@@ -210,11 +214,23 @@ class GameState:
         if not target_city:
             return f"Error: Target city with ID '{target_city_id}' not found."
 
-        # Remove unit from its current city's garrison, if any
-        if unit.current_location_city_id:
-            current_city = self.game_map.get_city(unit.current_location_city_id)
-            if current_city and unit_id in current_city.garrisoned_units:
-                current_city.garrisoned_units.remove(unit_id)
+        current_city_id = unit.current_location_city_id
+        if not current_city_id:
+            return f"Error: Unit {unit_id} ({unit.unit_type_id}) is not currently in any city and cannot move."
+        
+        current_city_obj = self.game_map.get_city(current_city_id)
+        if not current_city_obj: # Should not happen if current_location_city_id is set
+             return f"Error: Current city for unit {unit_id} (ID: {current_city_id}) not found."
+
+        if current_city_id == target_city_id:
+            return f"Error: Unit {unit_id} ({unit.unit_type_id}) is already in {target_city.name}."
+
+        if not self.game_map.are_adjacent(current_city_id, target_city_id):
+            return f"Error: Unit {unit_id} ({unit.unit_type_id}) cannot move from {current_city_obj.name} to {target_city.name}. Cities are not adjacent."
+
+        # Remove unit from its current city's garrison
+        if unit_id in current_city_obj.garrisoned_units:
+            current_city_obj.garrisoned_units.remove(unit_id)
         
         # Update unit's location
         unit.current_location_city_id = target_city_id
@@ -223,7 +239,7 @@ class GameState:
         if unit_id not in target_city.garrisoned_units:
             target_city.garrisoned_units.append(unit_id)
             
-        return f"Unit {unit_id} successfully moved to {target_city.name} (ID: {target_city_id})."
+        return f"Unit {unit_id} ({unit.unit_type_id}) successfully moved from {current_city_obj.name} to {target_city.name}."
 
     def develop_building_in_city(self, city_id: str, building_type: str) -> str:
         city = self.game_map.get_city(city_id)
