@@ -1,17 +1,19 @@
 
-from typing import Dict, List, Optional
-from army_unit import ArmyUnit # Import ArmyUnit
-from game_enums import UnitType # Import UnitType
+from typing import Dict, List, Optional, Set
+from army_unit import ArmyUnit 
+from game_enums import UnitType 
+import math # For ceiling division
+import random # For random target selection in simple combat
 
 class GameState:
-    def __init__(self, game_map_obj): # game_map_obj: GameMap
+    def __init__(self, game_map_obj): 
         self.current_turn = 1
-        self.game_map = game_map_obj # GameMap instance
-        self.factions: Dict[str, any] = {} # Faction objects, keyed by faction_id
-        self.generals: Dict[str, any] = {} # General objects, keyed by general_id
-        self.army_units: Dict[str, ArmyUnit] = {} # ArmyUnit objects, keyed by unit_id, type hint ArmyUnit
+        self.game_map = game_map_obj 
+        self.factions: Dict[str, any] = {} 
+        self.generals: Dict[str, any] = {} 
+        self.army_units: Dict[str, ArmyUnit] = {} 
         self.player_faction_id: Optional[str] = None
-        self.allowed_building_types = ["market", "barracks"] # Initial list
+        self.allowed_building_types = ["market", "barracks"]
 
     def add_faction(self, faction_obj):
         self.factions[faction_obj.faction_id] = faction_obj
@@ -26,20 +28,53 @@ class GameState:
             if faction:
                 faction.generals_list_ids.append(general_obj.general_id)
 
-    def add_army_unit(self, unit_obj: ArmyUnit): # Type hint ArmyUnit
+    def add_army_unit(self, unit_obj: ArmyUnit): 
         self.army_units[unit_obj.unit_id] = unit_obj
         if unit_obj.owning_faction_id:
              faction = self.factions.get(unit_obj.owning_faction_id)
              if faction:
                 faction.army_units_list_ids.append(unit_obj.unit_id)
 
+    def _remove_unit(self, unit_id_to_remove: str):
+        unit = self.army_units.pop(unit_id_to_remove, None)
+        if unit:
+            print(f"DEBUG: Removing unit {unit_id_to_remove} from game state army_units list.")
+            # Remove from faction's list
+            if unit.owning_faction_id and unit.owning_faction_id in self.factions:
+                faction = self.factions[unit.owning_faction_id]
+                if unit_id_to_remove in faction.army_units_list_ids:
+                    faction.army_units_list_ids.remove(unit_id_to_remove)
+                    print(f"DEBUG: Removed unit {unit_id_to_remove} from faction {faction.faction_id} list.")
+            
+            # Remove from city's garrison if it was in one
+            if unit.current_location_city_id and unit.current_location_city_id in self.game_map.cities:
+                city = self.game_map.cities[unit.current_location_city_id]
+                if unit_id_to_remove in city.garrisoned_units:
+                    city.garrisoned_units.remove(unit_id_to_remove)
+                    print(f"DEBUG: Removed unit {unit_id_to_remove} from city {city.city_id} garrison.")
+        else:
+            print(f"DEBUG: Attempted to remove unit {unit_id_to_remove}, but it was not found in army_units.")
+
+
     def assign_city_to_faction(self, city_id: str, faction_id: str):
         city = self.game_map.get_city(city_id)
         faction = self.factions.get(faction_id)
         if city and faction:
+            # If city had a previous owner, remove it from their list
+            if city.current_owner_faction_id and city.current_owner_faction_id in self.factions:
+                old_owner_faction = self.factions[city.current_owner_faction_id]
+                if city_id in old_owner_faction.controlled_cities_ids:
+                    old_owner_faction.controlled_cities_ids.remove(city_id)
+
             city.current_owner_faction_id = faction_id
             if city_id not in faction.controlled_cities_ids:
                 faction.controlled_cities_ids.append(city_id)
+            print(f"INFO: City {city.name} (ID: {city_id}) is now controlled by {faction.name}.")
+        elif not city:
+            print(f"ERROR: Cannot assign city {city_id} - city not found.")
+        elif not faction:
+            print(f"ERROR: Cannot assign city {city_id} to faction {faction_id} - faction not found.")
+
 
     def place_general_in_city(self, general_id: str, city_id: str):
         general = self.generals.get(general_id)
@@ -64,13 +99,14 @@ class GameState:
                  print(f"Player is controlling: {player_faction.name}")
         print("\nFactions:")
         for faction_id, faction_obj in self.factions.items():
-            print(f"- {faction_obj.name} (ID: {faction_id})")
+            print(f"- {faction_obj.name} (ID: {faction_id}), Capital: {faction_obj.capital_city_id or 'N/A'}, Treasury: {faction_obj.treasury}")
         print("\nCities:")
         for city_id, city_obj in self.game_map.cities.items():
             owner_name = "Unowned"
             if city_obj.current_owner_faction_id and city_obj.current_owner_faction_id in self.factions:
                 owner_name = self.factions[city_obj.current_owner_faction_id].short_name
-            print(f"- {city_obj.name} (ID: {city_id}), Owner: {owner_name}")
+            garrison_count = len(city_obj.garrisoned_units)
+            print(f"- {city_obj.name} (ID: {city_id}), Owner: {owner_name}, Garrison: {garrison_count} units")
         print("\nGenerals:")
         for general_id, general_obj in self.generals.items():
             faction_name = "N/A"
@@ -82,7 +118,7 @@ class GameState:
             faction_name = "N/A"
             if unit_obj.owning_faction_id and unit_obj.owning_faction_id in self.factions:
                 faction_name = self.factions[unit_obj.owning_faction_id].short_name
-            print(f"- Unit {unit_id} ({unit_obj.unit_type_id}), Faction: {faction_name}, Location: {unit_obj.current_location_city_id or 'Field'}, Soldiers: {unit_obj.soldiers}")
+            print(f"- {str(unit_obj)}") # Using unit_obj.__str__()
 
     def get_city_details_str(self, city_id: str) -> str:
         city = self.game_map.get_city(city_id)
@@ -105,7 +141,7 @@ class GameState:
             for unit_id_in_garrison in city.garrisoned_units:
                 unit = self.army_units.get(unit_id_in_garrison)
                 if unit:
-                    garrison_details.append(f"  - {unit.unit_id} ({unit.unit_type_id}, {unit.soldiers} soldiers)")
+                    garrison_details.append(f"  - {str(unit)}") # Using unit.__str__()
                 else:
                     garrison_details.append(f"  - {unit_id_in_garrison} (Error: Unit details not found)")
             if garrison_details:
@@ -174,8 +210,8 @@ class GameState:
         details.append(f"Generals: {generals_str}")
         army_units_str = "None"
         if faction.army_units_list_ids:
-            unit_descs = [f"{u_id} ({self.army_units.get(u_id).unit_type_id})" if self.army_units.get(u_id) else u_id for u_id in faction.army_units_list_ids]
-            army_units_str = ", ".join(unit_descs)
+            unit_descs = [str(self.army_units.get(u_id)) if self.army_units.get(u_id) else u_id for u_id in faction.army_units_list_ids]
+            army_units_str = "\n  - " + "\n  - ".join(unit_descs) if unit_descs else "None"
         details.append(f"Army Units: {army_units_str}")
         return "\n".join(details)
 
@@ -217,31 +253,21 @@ class GameState:
         city = self.game_map.get_city(city_id)
         if not city:
             return f"Error: City with ID '{city_id}' not found for recruitment."
-
         player_faction = self.factions.get(self.player_faction_id)
         if not player_faction or city.current_owner_faction_id != self.player_faction_id:
             return f"Error: City {city.name} is not controlled by your faction ({self.player_faction_id})."
-
         if city_id != player_faction.capital_city_id:
-            return f"Error: Units can currently only be recruited in your capital city ({player_faction.capital_city_id})."
-
+            return f"Error: Units can currently only be recruited in your capital city ({self.game_map.get_city(player_faction.capital_city_id).name if player_faction.capital_city_id else 'N/A'})."
         unit_type_enum = UnitType.from_string(unit_type_str)
         if not unit_type_enum:
-            allowed_types = ", ".join([ut.value for ut in UnitType if ut not in [UnitType.FLEET_CHANNEL, UnitType.INFANTRY_DIVISION]]) # Exclude non-standard for now
-            return f"Error: Invalid unit type '{unit_type_str}'. Allowed types: {allowed_types}"
-
-        # Default soldier counts (can be moved to UnitType enum or a config file later)
+            allowed_types_list = [ut.value for ut in UnitType if ut not in [UnitType.FLEET_CHANNEL, UnitType.INFANTRY_DIVISION]] 
+            return f"Error: Invalid unit type '{unit_type_str}'. Allowed types: {', '.join(allowed_types_list)}"
         default_soldiers = {
-            UnitType.INFANTRY_CORPS: 20000,
-            UnitType.GUARD_CORPS: 15000,
-            UnitType.CAVALRY_SQUADRON: 5000,
-            UnitType.ARTILLERY_BATTERY: 2000,
-            UnitType.MILITIA: 10000
-        }
-        soldiers = default_soldiers.get(unit_type_enum, 1000) # Default to 1000 if not specified
-
-        new_unit_id = f"{self.player_faction_id}_unit_{len(self.army_units) + 1}" # Simple unique ID
-        
+            UnitType.INFANTRY_CORPS: 20000, UnitType.GUARD_CORPS: 15000,
+            UnitType.CAVALRY_SQUADRON: 5000, UnitType.ARTILLERY_BATTERY: 2000,
+            UnitType.MILITIA: 10000 }
+        soldiers = default_soldiers.get(unit_type_enum, 1000)
+        new_unit_id = f"{self.player_faction_id}_unit_{len(self.army_units) + sum(1 for u in self.army_units.values() if u.owning_faction_id == self.player_faction_id) + 1}"
         assigned_general_id = None
         if general_id_str:
             general_to_assign = self.generals.get(general_id_str)
@@ -252,18 +278,137 @@ class GameState:
             if general_to_assign.current_location_city_id != city_id:
                 return f"Error: General {general_to_assign.name} is not in {city.name} to lead the new unit."
             assigned_general_id = general_id_str
-
         new_unit = ArmyUnit(unit_id=new_unit_id, unit_type_id=unit_type_enum.value, 
                             owning_faction_id=self.player_faction_id, soldiers=soldiers, 
                             leading_general_id=assigned_general_id)
-        
         self.add_army_unit(new_unit)
         self.place_unit_in_city(new_unit_id, city_id)
-
         recruit_msg = f"Successfully recruited {unit_type_enum.value} ({new_unit_id}) with {soldiers} soldiers in {city.name} for {player_faction.name}."
         if assigned_general_id:
             recruit_msg += f" Led by General {self.generals[assigned_general_id].name}."
         return recruit_msg
+
+    def _resolve_battle_in_city(self, city_obj) -> List[str]:
+        battle_log = []
+        units_in_city = [self.army_units[uid] for uid in city_obj.garrisoned_units if uid in self.army_units]
+        if not units_in_city:
+            return battle_log
+
+        factions_present: Set[str] = set(unit.owning_faction_id for unit in units_in_city)
+        if len(factions_present) <= 1:
+            return battle_log # No battle if only one or zero factions present
+
+        battle_log.append(f"\n--- Battle in {city_obj.name} (Turn {self.current_turn}) ---")
+        original_owner_id = city_obj.current_owner_faction_id
+
+        # Simple combat: All non-owners vs owner (if owner has units)
+        # More complex (e.g., multi-sided free-for-all or alliances) can be added later.
+        
+        # Group units by faction
+        units_by_faction: Dict[str, List[ArmyUnit]] = {faction_id: [] for faction_id in factions_present}
+        for unit in units_in_city:
+            units_by_faction[unit.owning_faction_id].append(unit)
+
+        defender_faction_id = original_owner_id
+        attacker_faction_ids = [fid for fid in factions_present if fid != defender_faction_id]
+
+        if not attacker_faction_ids: # Should not happen if len(factions_present) > 1
+            battle_log.append("  No attackers identified despite multiple factions. Skipping combat.")
+            return battle_log
+
+        # --- Defender's Turn (if defenders exist) ---
+        defender_units = units_by_faction.get(defender_faction_id, [])
+        if defender_units:
+            defender_total_force = sum(u.soldiers for u in defender_units)
+            # Defender attacks one random attacker unit (from any attacking faction)
+            all_attacker_units = [u for fid in attacker_faction_ids for u in units_by_faction.get(fid, []) if u.soldiers > 0]
+            if all_attacker_units:
+                target_attacker_unit = random.choice(all_attacker_units)
+                damage_to_attacker = math.ceil(defender_total_force * 0.1) # Defender deals 10% of their force
+                damage_to_attacker = max(1, damage_to_attacker) # Minimum 1 damage
+                battle_log.append(f"  {self.factions[defender_faction_id].short_name} (Defenders, {defender_total_force} total soldiers) attack! Target: {target_attacker_unit.unit_id} ({target_attacker_unit.unit_type_id}) of {self.factions[target_attacker_unit.owning_faction_id].short_name}.")
+                destroyed = target_attacker_unit.take_damage(damage_to_attacker)
+                battle_log.append(f"    {target_attacker_unit.unit_id} takes {damage_to_attacker} damage, {target_attacker_unit.soldiers} soldiers remain.")
+                if destroyed:
+                    battle_log.append(f"    Unit {target_attacker_unit.unit_id} has been destroyed!")
+                    self._remove_unit(target_attacker_unit.unit_id)
+                    # Update local list for this battle resolution
+                    units_by_faction[target_attacker_unit.owning_faction_id] = [u for u in units_by_faction[target_attacker_unit.owning_faction_id] if u.unit_id != target_attacker_unit.unit_id]
+            else:
+                battle_log.append(f"  {self.factions[defender_faction_id].short_name} (Defenders) find no attacker units to target.")
+        else:
+            battle_log.append("  No defending units from original owner present.")
+
+        # --- Attackers' Turn (combined for simplicity) ---
+        all_attacker_units_remaining = [u for fid in attacker_faction_ids for u in units_by_faction.get(fid, []) if u.soldiers > 0]
+        if all_attacker_units_remaining:
+            attacker_total_force = sum(u.soldiers for u in all_attacker_units_remaining)
+            # Attackers attack one random defender unit
+            defender_units_remaining = [u for u in units_by_faction.get(defender_faction_id, []) if u.soldiers > 0]
+            if defender_units_remaining:
+                target_defender_unit = random.choice(defender_units_remaining)
+                damage_to_defender = math.ceil(attacker_total_force * 0.1) # Attackers deal 10% of their combined force
+                damage_to_defender = max(1, damage_to_defender)
+                battle_log.append(f"  Combined Attackers ({attacker_total_force} total soldiers) attack! Target: {target_defender_unit.unit_id} ({target_defender_unit.unit_type_id}) of {self.factions[target_defender_unit.owning_faction_id].short_name}.")
+                destroyed = target_defender_unit.take_damage(damage_to_defender)
+                battle_log.append(f"    {target_defender_unit.unit_id} takes {damage_to_defender} damage, {target_defender_unit.soldiers} soldiers remain.")
+                if destroyed:
+                    battle_log.append(f"    Unit {target_defender_unit.unit_id} has been destroyed!")
+                    self._remove_unit(target_defender_unit.unit_id)
+                    units_by_faction[target_defender_unit.owning_faction_id] = [u for u in units_by_faction[target_defender_unit.owning_faction_id] if u.unit_id != target_defender_unit.unit_id]
+            else:
+                battle_log.append("  Combined Attackers find no defender units to target.")
+        else:
+            battle_log.append("  No attacker units remaining or present.")
+
+        # --- City Occupation Check ---
+        # Check if original defender still has units in the city
+        defender_units_after_battle = [u for u in units_by_faction.get(original_owner_id, []) if u.soldiers > 0]
+        if not defender_units_after_battle and original_owner_id: # Original owner wiped out or wasn't there
+            # Check if any attackers remain
+            surviving_attacker_factions: Dict[str, int] = {}
+            for fid in attacker_faction_ids:
+                faction_units = [u for u in units_by_faction.get(fid, []) if u.soldiers > 0]
+                if faction_units:
+                    surviving_attacker_factions[fid] = sum(u.soldiers for u in faction_units)
+            
+            if surviving_attacker_factions:
+                # Strongest surviving attacker faction takes the city
+                new_owner_id = max(surviving_attacker_factions, key=surviving_attacker_factions.get)
+                if new_owner_id != original_owner_id:
+                    battle_log.append(f"  DEFENDERS WIPED OUT! {city_obj.name} has been occupied by {self.factions[new_owner_id].name}!")
+                    self.assign_city_to_faction(city_obj.city_id, new_owner_id)
+                else:
+                    battle_log.append(f"  Defenders held {city_obj.name} (or re-occupied immediately).") 
+            else:
+                battle_log.append(f"  All forces in {city_obj.name} have been wiped out. City becomes unowned (or remains with original if no attackers).")
+                # Potentially set to unowned if no original owner either, or handle based on rules
+                if original_owner_id: # If there was an owner and they are gone, and no attackers to take it
+                    # This case means city might become neutral or revert to a default state if needed.
+                    # For now, if attackers are also wiped out, it might remain with original if they had no units (edge case)
+                    # or if no original owner, it stays unowned. This part might need more rules.
+                    pass 
+        elif original_owner_id: # Original owner still has units
+             battle_log.append(f"  {self.factions[original_owner_id].short_name} holds {city_obj.name}.")
+        else: # No original owner and potentially no one took it
+            battle_log.append(f"  {city_obj.name} remains unowned or state unchanged after inconclusive battle.")
+
+        battle_log.append(f"--- Battle in {city_obj.name} resolved. ---")
+        return battle_log
+
+    def _resolve_all_city_battles(self):
+        all_battle_logs = []
+        for city_id in list(self.game_map.cities.keys()): # Iterate over copy of keys in case cities dict changes
+            city_obj = self.game_map.get_city(city_id)
+            if city_obj:
+                log_entries = self._resolve_battle_in_city(city_obj)
+                if log_entries:
+                    all_battle_logs.extend(log_entries)
+        if all_battle_logs:
+            for log_entry in all_battle_logs:
+                print(log_entry)
+        else:
+            print("No battles occurred this turn.")
 
     def next_turn(self):
         self.current_turn += 1
@@ -277,4 +422,6 @@ class GameState:
             faction_obj.treasury += income
             if faction_obj.faction_id == self.player_faction_id:
                  print(f"{faction_obj.short_name} received {income} gold. Treasury: {faction_obj.treasury}")
+        
+        self._resolve_all_city_battles() # Resolve battles at the end of the turn
 

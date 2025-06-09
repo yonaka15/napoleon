@@ -5,7 +5,7 @@ from general import General
 from army_unit import ArmyUnit
 from game_map import GameMap
 from game_state import GameState
-from game_enums import UnitType # Import UnitType
+from game_enums import UnitType 
 
 def setup_initial_state() -> GameState:
     # 1. Create Game Map
@@ -45,7 +45,7 @@ def setup_initial_state() -> GameState:
     game.add_faction(britain)
     game.add_faction(austria)
     game.add_faction(prussia)
-    game.player_faction_id = "france"
+    game.player_faction_id = "france" # Player controls France
 
     # 5. Assign cities to factions
     game.assign_city_to_faction("paris", "france")
@@ -79,13 +79,12 @@ def setup_initial_state() -> GameState:
     game.place_general_in_city("archduke_charles", "vienna")
     game.place_general_in_city("blucher", "berlin")
 
-    # 8. Create Army Units and add to game state (using string for unit_type_id as per ArmyUnit class)
+    # 8. Create Army Units and add to game state 
     fra_corps_1 = ArmyUnit(unit_id="fra_corps_1", unit_type_id=UnitType.INFANTRY_CORPS.value, owning_faction_id="france", soldiers=25000, leading_general_id="davout")
     fra_guard = ArmyUnit(unit_id="fra_guard", unit_type_id=UnitType.GUARD_CORPS.value, owning_faction_id="france", soldiers=15000, leading_general_id="napoleon")
-    # Using existing string types for these to avoid breaking current setup completely if UnitType enum not exhaustive
     bri_fleet_1 = ArmyUnit(unit_id="bri_fleet_1", unit_type_id="fleet_channel", owning_faction_id="britain", soldiers=100) 
     aus_army_1 = ArmyUnit(unit_id="aus_army_1", unit_type_id="infantry_division", owning_faction_id="austria", soldiers=30000, leading_general_id="archduke_charles")
-    pru_corps_1 = ArmyUnit(unit_id="pru_corps_1", unit_type_id="infantry_corps", owning_faction_id="prussia", soldiers=22000, leading_general_id="blucher")
+    pru_corps_1 = ArmyUnit(unit_id="pru_corps_1", unit_type_id=UnitType.INFANTRY_CORPS.value, owning_faction_id="prussia", soldiers=22000, leading_general_id="blucher")
 
     game.add_army_unit(fra_corps_1)
     game.add_army_unit(fra_guard)
@@ -113,7 +112,7 @@ def game_loop(game_state: GameState):
     print("  recruit unit <u_type> in <city_id> [with <gen_id>] - Recruit a new unit in YOUR CAPITAL (e.g., recruit unit infantry_corps in paris with napoleon)")
     print("                                     Allowed unit types: infantry_corps, guard_corps, cavalry_squadron, artillery_battery, militia")
     print("  summary                          - Display current game state summary")
-    print("  next turn                        - Advance to the next turn")
+    print("  next turn                        - Advance to the next turn (triggers auto-combat if applicable)")
     print("  exit                             - Exit the game")
 
     while True:
@@ -132,7 +131,7 @@ def game_loop(game_state: GameState):
             game_state.display_summary()
         elif action == "next" and len(parts) > 1 and parts[1] == "turn":
             game_state.next_turn()
-            # game_state.display_summary() # Display summary after each turn for now
+            game_state.display_summary() # Display summary after turn and combat
         elif action == "info" and len(parts) > 2:
             sub_command = parts[1]
             target_id = parts[2]
@@ -163,19 +162,19 @@ def game_loop(game_state: GameState):
             if len(parts) == 7 and parts[5] == "with":
                 general_id_for_recruit = parts[6]
             elif len(parts) == 5:
-                pass # No general specified
+                pass 
             else:
                 print("Invalid recruit command format. Use: recruit unit <type> in <city_id> [with <general_id>]")
                 continue
             print(game_state.recruit_unit(unit_type_to_recruit, city_id_for_recruit, general_id_for_recruit))
-        elif action == "recruit" : # Catch other invalid recruit formats
+        elif action == "recruit" : 
             print("Invalid recruit command. Format: recruit unit <type> in <city_id> [with <general_id>]")
         else:
             print(f"Unknown command: '{command_input}'. Type 'help' for a list of commands (not yet implemented, use displayed list).")
 
 
 if __name__ == "__main__":
-    print("Setting up Napoleon Game Prototype v0.1.7 (with recruit unit command prototype)...")
+    print("Setting up Napoleon Game Prototype v0.1.8 (with basic auto combat resolution)...")
     current_game_state = setup_initial_state()
     print("\n--- Initial Game State Summary ---")
     current_game_state.display_summary()
