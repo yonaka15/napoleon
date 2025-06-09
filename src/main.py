@@ -31,9 +31,8 @@ def setup_initial_state() -> GameState:
     europe_map.add_adjacency("lyon", "marseille")
     europe_map.add_adjacency("paris", "berlin")
     europe_map.add_adjacency("berlin", "vienna")
-    # For AI testing, ensure some paths for non-player factions
-    europe_map.add_adjacency("london", "paris") # To allow Britain to move to Paris for combat test
-    europe_map.add_adjacency("vienna", "lyon")  # To allow Austria to move towards French territory
+    europe_map.add_adjacency("london", "paris") 
+    europe_map.add_adjacency("vienna", "lyon")  
 
     # 3. Create Game State
     game = GameState(game_map_obj=europe_map)
@@ -53,10 +52,10 @@ def setup_initial_state() -> GameState:
     # Set Initial Diplomatic Status (after all factions are added)
     game.set_diplomatic_status("france", "britain", DiplomaticStatus.WAR, -100)
     game.set_diplomatic_status("france", "austria", DiplomaticStatus.WAR, -80)
-    game.set_diplomatic_status("france", "prussia", DiplomaticStatus.PEACE, -20)
+    game.set_diplomatic_status("france", "prussia", DiplomaticStatus.PEACE, -20) # Initially at peace with Prussia
     game.set_diplomatic_status("britain", "austria", DiplomaticStatus.ALLIANCE, 70)
-    game.set_diplomatic_status("britain", "prussia", DiplomaticStatus.PEACE, 30)
-    game.set_diplomatic_status("austria", "prussia", DiplomaticStatus.PEACE, 10)
+    game.set_diplomatic_status("britain", "prussia", DiplomaticStatus.PEACE, 30) # Britain might be trying to ally Prussia
+    game.set_diplomatic_status("austria", "prussia", DiplomaticStatus.PEACE, 10) # Austria and Prussia, complex relations
 
     # 5. Assign cities to factions
     game.assign_city_to_faction("paris", "france")
@@ -93,17 +92,18 @@ def setup_initial_state() -> GameState:
     ut_inf_corps = UnitType.INFANTRY_CORPS
     ut_guard_corps = UnitType.GUARD_CORPS
     ut_inf_div = UnitType.INFANTRY_DIVISION
-    ut_fleet = UnitType.FLEET_CHANNEL
+    # ut_fleet = UnitType.FLEET_CHANNEL # Not used for land movement AI test
 
     fra_corps_1 = ArmyUnit(unit_id="fra_corps_1", unit_type_id=ut_inf_corps.type_id, base_attack=ut_inf_corps.base_attack, base_defense=ut_inf_corps.base_defense, owning_faction_id="france", soldiers=ut_inf_corps.default_soldiers, leading_general_id="davout")
     fra_guard = ArmyUnit(unit_id="fra_guard", unit_type_id=ut_guard_corps.type_id, base_attack=ut_guard_corps.base_attack, base_defense=ut_guard_corps.base_defense, owning_faction_id="france", soldiers=ut_guard_corps.default_soldiers, leading_general_id="napoleon")
-    bri_army_1 = ArmyUnit(unit_id="bri_army_1", unit_type_id=ut_inf_corps.type_id, base_attack=ut_inf_corps.base_attack, base_defense=ut_inf_corps.base_defense, owning_faction_id="britain", soldiers=18000, leading_general_id="nelson") # Britain land army
+    # British land unit for AI movement testing
+    bri_army_1 = ArmyUnit(unit_id="bri_army_1", unit_type_id=ut_inf_corps.type_id, base_attack=ut_inf_corps.base_attack, base_defense=ut_inf_corps.base_defense, owning_faction_id="britain", soldiers=18000, leading_general_id="nelson") 
     aus_army_1 = ArmyUnit(unit_id="aus_army_1", unit_type_id=ut_inf_div.type_id, base_attack=ut_inf_div.base_attack, base_defense=ut_inf_div.base_defense, owning_faction_id="austria", soldiers=ut_inf_div.default_soldiers, leading_general_id="archduke_charles")
     pru_corps_1 = ArmyUnit(unit_id="pru_corps_1", unit_type_id=ut_inf_corps.type_id, base_attack=ut_inf_corps.base_attack, base_defense=ut_inf_corps.base_defense, owning_faction_id="prussia", soldiers=22000, leading_general_id="blucher")
 
     game.add_army_unit(fra_corps_1)
     game.add_army_unit(fra_guard)
-    game.add_army_unit(bri_army_1) # Replaced fleet with an army for land movement test
+    game.add_army_unit(bri_army_1) 
     game.add_army_unit(aus_army_1)
     game.add_army_unit(pru_corps_1)
 
@@ -192,7 +192,7 @@ def game_loop(game_state: GameState):
 
 
 if __name__ == "__main__":
-    print("Setting up Napoleon Game Prototype v0.1.11 (with basic AI unit movement)...")
+    print("Setting up Napoleon Game Prototype v0.1.12 (AI targeting and improved movement logic)...")
     current_game_state = setup_initial_state()
     print("\n--- Initial Game State Summary ---")
     current_game_state.display_summary()
