@@ -14,6 +14,7 @@ class GameState:
         self.generals: Dict[str, any] = {} # General objects, keyed by general_id
         self.army_units: Dict[str, any] = {} # ArmyUnit objects, keyed by unit_id
         self.player_faction_id: Optional[str] = None
+        self.allowed_building_types = ["market", "barracks"] # Initial list
 
     def add_faction(self, faction_obj):
         self.factions[faction_obj.faction_id] = faction_obj
@@ -224,6 +225,19 @@ class GameState:
             
         return f"Unit {unit_id} successfully moved to {target_city.name} (ID: {target_city_id})."
 
+    def develop_building_in_city(self, city_id: str, building_type: str) -> str:
+        city = self.game_map.get_city(city_id)
+        if not city:
+            return f"Error: City with ID '{city_id}' not found."
+
+        if building_type not in self.allowed_building_types:
+            return f"Error: Building type '{building_type}' is not allowed. Allowed types: {', '.join(self.allowed_building_types)}"
+
+        # In a real implementation, we would add this to a construction queue,
+        # check for resources, development slots, etc.
+        # For now, just acknowledge the command.
+        return f"{city.name} has started development of {building_type}. (Note: This is a prototype, actual construction not yet implemented.)"
+
     def next_turn(self):
         self.current_turn += 1
         print(f"\n--- Advanced to Turn {self.current_turn} ---")
@@ -236,3 +250,4 @@ class GameState:
                     income += city.economy // 10 # Simple income based on economy
             faction_obj.treasury += income
             print(f"{faction_obj.short_name} received {income} gold. Treasury: {faction_obj.treasury}")
+
