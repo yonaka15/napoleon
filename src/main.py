@@ -18,6 +18,7 @@ def setup_initial_state() -> GameState:
     berlin = City(city_id="berlin", name="Berlin", region_id="brandenburg")
     marseille = City(city_id="marseille", name="Marseille", region_id="provence")
     lyon = City(city_id="lyon", name="Lyon", region_id="rhone_alpes")
+    amsterdam = City(city_id="amsterdam", name="Amsterdam", region_id="holland") # For AI testing
 
     europe_map.add_city(paris)
     europe_map.add_city(london)
@@ -25,6 +26,7 @@ def setup_initial_state() -> GameState:
     europe_map.add_city(berlin)
     europe_map.add_city(marseille)
     europe_map.add_city(lyon)
+    europe_map.add_city(amsterdam)
 
     # Define Adjacencies
     europe_map.add_adjacency("paris", "lyon")
@@ -33,6 +35,8 @@ def setup_initial_state() -> GameState:
     europe_map.add_adjacency("berlin", "vienna")
     europe_map.add_adjacency("london", "paris") 
     europe_map.add_adjacency("vienna", "lyon")  
+    europe_map.add_adjacency("paris", "amsterdam") # Paris can reach Amsterdam
+    europe_map.add_adjacency("london", "amsterdam") # London can reach Amsterdam
 
     # 3. Create Game State
     game = GameState(game_map_obj=europe_map)
@@ -64,6 +68,7 @@ def setup_initial_state() -> GameState:
     game.assign_city_to_faction("london", "britain")
     game.assign_city_to_faction("vienna", "austria")
     game.assign_city_to_faction("berlin", "prussia")
+    game.assign_city_to_faction("amsterdam", "britain") # Amsterdam to Britain for AI testing
 
     # 6. Create Generals and add to game state
     napoleon = General(general_id="napoleon", name="Napoleon Bonaparte", faction_id="france", command=95, attack_skill=90, defense_skill=80)
@@ -197,7 +202,7 @@ def game_loop(game_state: GameState):
 
 
 if __name__ == "__main__":
-    print("Setting up Napoleon Game Prototype v0.1.13 (with declare war command)...")
+    print("Setting up Napoleon Game Prototype v0.1.14 (AI behavior enhancements: defense, concentration)...")
     current_game_state = setup_initial_state()
     print("\n--- Initial Game State Summary ---")
     current_game_state.display_summary()
