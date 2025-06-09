@@ -109,14 +109,14 @@ def game_loop(game_state: GameState):
     print("  info city <city_id>                - Show details for a city (e.g., info city paris)")
     print("  info general <gen_id>              - Show details for a general (e.g., info general napoleon)")
     print("  info faction <faction_id>          - Show details for a faction (e.g., info faction france)")
-    print("  move unit <unit_id> to <city_id>   - Move a unit to an ADJACENT city (e.g., move unit fra_corps_1 to paris)")
+    print("  move unit <unit_id> to <city_id>   - Move YOUR unit to an ADJACENT city (e.g., move unit fra_corps_1 to paris)")
     print("  develop city <id> <building_type>  - Start development in a city (e.g., develop city paris market). Allowed types: market, barracks")
     print("  summary                          - Display current game state summary")
     print("  next turn                        - Advance to the next turn")
     print("  exit                             - Exit the game")
 
     while True:
-        command_input = input(f"\nTurn {game_state.current_turn}> ").strip().lower()
+        command_input = input(f"\nTurn {game_state.current_turn} ({game_state.factions[game_state.player_faction_id].short_name})> ").strip().lower()
         parts = command_input.split()
         if not parts:
             continue
@@ -159,7 +159,7 @@ def game_loop(game_state: GameState):
 
 
 if __name__ == "__main__":
-    print("Setting up Napoleon Game Prototype v0.1.5 (with map adjacency)...")
+    print("Setting up Napoleon Game Prototype v0.1.6 (with unit ownership check for move command)...")
     current_game_state = setup_initial_state()
     print("\n--- Initial Game State Summary ---")
     current_game_state.display_summary()
