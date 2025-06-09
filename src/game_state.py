@@ -200,6 +200,30 @@ class GameState:
         
         return "\n".join(details)
 
+    def move_unit(self, unit_id: str, target_city_id: str) -> str:
+        unit = self.army_units.get(unit_id)
+        if not unit:
+            return f"Error: Unit with ID '{unit_id}' not found."
+
+        target_city = self.game_map.get_city(target_city_id)
+        if not target_city:
+            return f"Error: Target city with ID '{target_city_id}' not found."
+
+        # Remove unit from its current city's garrison, if any
+        if unit.current_location_city_id:
+            current_city = self.game_map.get_city(unit.current_location_city_id)
+            if current_city and unit_id in current_city.garrisoned_units:
+                current_city.garrisoned_units.remove(unit_id)
+        
+        # Update unit's location
+        unit.current_location_city_id = target_city_id
+        
+        # Add unit to the target city's garrison
+        if unit_id not in target_city.garrisoned_units:
+            target_city.garrisoned_units.append(unit_id)
+            
+        return f"Unit {unit_id} successfully moved to {target_city.name} (ID: {target_city_id})."
+
     def next_turn(self):
         self.current_turn += 1
         print(f"\n--- Advanced to Turn {self.current_turn} ---")
@@ -212,6 +236,3 @@ class GameState:
                     income += city.economy // 10 # Simple income based on economy
             faction_obj.treasury += income
             print(f"{faction_obj.short_name} received {income} gold. Treasury: {faction_obj.treasury}")
-
-        # Add more turn processing logic here in the future
-        # For example, resource collection, unit movement AI, etc.

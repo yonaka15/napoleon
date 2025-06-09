@@ -88,12 +88,13 @@ def setup_initial_state() -> GameState:
 def game_loop(game_state: GameState):
     print("\n--- Napoleon Game Prototype Command Mode ---")
     print("Available commands:")
-    print("  info city <city_id>      - Show details for a city (e.g., info city paris)")
-    print("  info general <gen_id>    - Show details for a general (e.g., info general napoleon)")
-    print("  info faction <faction_id> - Show details for a faction (e.g., info faction france)")
-    print("  summary                  - Display current game state summary")
-    print("  next turn                - Advance to the next turn")
-    print("  exit                     - Exit the game")
+    print("  info city <city_id>                - Show details for a city (e.g., info city paris)")
+    print("  info general <gen_id>              - Show details for a general (e.g., info general napoleon)")
+    print("  info faction <faction_id>          - Show details for a faction (e.g., info faction france)")
+    print("  move unit <unit_id> to <city_id>   - Move a unit to another city (e.g., move unit fra_corps_1 to berlin)")
+    print("  summary                          - Display current game state summary")
+    print("  next turn                        - Advance to the next turn")
+    print("  exit                             - Exit the game")
 
     while True:
         command_input = input(f"\nTurn {game_state.current_turn}> ").strip().lower()
@@ -122,12 +123,18 @@ def game_loop(game_state: GameState):
                 print(game_state.get_faction_details_str(target_id))
             else:
                 print(f"Unknown info command: 'info {sub_command}'. Supported: city, general, faction")
+        elif action == "move" and len(parts) == 5 and parts[1] == "unit" and parts[3] == "to":
+            unit_id_to_move = parts[2]
+            target_city_id_for_move = parts[4]
+            print(game_state.move_unit(unit_id_to_move, target_city_id_for_move))
+        elif action == "move" and (len(parts) < 5 or parts[1] != "unit" or parts[3] != "to"):
+             print("Invalid move command. Format: move unit <unit_id> to <target_city_id>")
         else:
-            print(f"Unknown command: '{command_input}'. Type 'exit' to quit.")
+            print(f"Unknown command: '{command_input}'. Type 'help' for a list of commands (not yet implemented, use displayed list).")
 
 
 if __name__ == "__main__":
-    print("Setting up Napoleon Game Prototype v0.1.2 (with more info commands)...")
+    print("Setting up Napoleon Game Prototype v0.1.3 (with move unit command)...")
     current_game_state = setup_initial_state()
     print("\n--- Initial Game State Summary ---")
     current_game_state.display_summary()
