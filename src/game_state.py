@@ -72,7 +72,7 @@ class GameState:
             city.current_owner_faction_id = faction_id
             if city_id not in new_faction_obj.controlled_cities_ids:
                 new_faction_obj.controlled_cities_ids.append(city_id)
-            # print(f"INFO: City {city.name} (ID: {city_id}) is now controlled by {new_faction_obj.name}.") # Reduce verbosity for assign
+            # print(f"INFO: City {city.name} (ID: {city_id}) is now controlled by {new_faction_obj.name}.") # Reduced verbosity
         elif not city:
             print(f"ERROR: Cannot assign city {city_id} - city not found.")
         elif not new_faction_obj:
@@ -254,11 +254,18 @@ class GameState:
         city = self.game_map.get_city(city_id)
         if not city:
             return f"Error: City with ID '{city_id}' not found for recruitment."
-        player_faction = self.factions.get(self.player_faction_id)
-        if not player_faction or city.current_owner_faction_id != self.player_faction_id:
-            return f"Error: City {city.name} is not controlled by your faction ({self.player_faction_id})."
-        if city_id != player_faction.capital_city_id:
-            capital_name = self.game_map.get_city(player_faction.capital_city_id).name if player_faction.capital_city_id and self.game_map.get_city(player_faction.capital_city_id) else 'N/A'
+        # For AI or player recruitment, check ownership of the city
+        # Player can only recruit in their own capital. AI can recruit in their own capital.
+        recruiting_faction_id = self.player_faction_id # Default to player
+        # This part could be refactored if AI has different recruitment rules or uses a different commanding faction ID.
+        # For now, assume AI uses its own faction ID when this method is called by AI logic.
+        # The command parser in main.py ensures player_faction_id is used for player commands.
+
+        recruiting_faction = self.factions.get(recruiting_faction_id)
+        if not recruiting_faction or city.current_owner_faction_id != recruiting_faction_id:
+            return f"Error: City {city.name} is not controlled by your faction ({recruiting_faction_id})."
+        if city_id != recruiting_faction.capital_city_id:
+            capital_name = self.game_map.get_city(recruiting_faction.capital_city_id).name if recruiting_faction.capital_city_id and self.game_map.get_city(recruiting_faction.capital_city_id) else 'N/A'
             return f"Error: Units can currently only be recruited in your capital city ({capital_name})."
         unit_type_enum = UnitType.from_string(unit_type_str)
         if not unit_type_enum:
@@ -267,24 +274,24 @@ class GameState:
         soldiers = unit_type_enum.default_soldiers
         base_atk = unit_type_enum.base_attack
         base_def = unit_type_enum.base_defense
-        new_unit_id = f"{self.player_faction_id}_unit_{len(self.army_units) + sum(1 for u in self.army_units.values() if u.owning_faction_id == self.player_faction_id) + 1}"
+        new_unit_id = f"{recruiting_faction_id}_unit_{len(self.army_units) + sum(1 for u in self.army_units.values() if u.owning_faction_id == recruiting_faction_id) + 1}"
         assigned_general_id = None
         if general_id_str:
             general_to_assign = self.generals.get(general_id_str)
             if not general_to_assign:
                 return f"Error: General with ID '{general_id_str}' not found."
-            if general_to_assign.faction_id != self.player_faction_id:
+            if general_to_assign.faction_id != recruiting_faction_id:
                 return f"Error: General {general_to_assign.name} does not belong to your faction."
             if general_to_assign.current_location_city_id != city_id:
                 return f"Error: General {general_to_assign.name} is not in {city.name} to lead the new unit."
             assigned_general_id = general_id_str
         new_unit = ArmyUnit(unit_id=new_unit_id, unit_type_id=unit_type_enum.type_id, 
                             base_attack=base_atk, base_defense=base_def,
-                            owning_faction_id=self.player_faction_id, soldiers=soldiers, 
+                            owning_faction_id=recruiting_faction_id, soldiers=soldiers, 
                             leading_general_id=assigned_general_id)
         self.add_army_unit(new_unit)
         self.place_unit_in_city(new_unit_id, city_id)
-        recruit_msg = f"Successfully recruited {unit_type_enum.type_id} ({new_unit_id}) with BA:{base_atk}/BD:{base_def} and {soldiers} soldiers in {city.name} for {player_faction.name}."
+        recruit_msg = f"Successfully recruited {unit_type_enum.type_id} ({new_unit_id}) with BA:{base_atk}/BD:{base_def} and {soldiers} soldiers in {city.name} for {recruiting_faction.name}."
         if assigned_general_id:
             recruit_msg += f" Led by General {self.generals[assigned_general_id].name}."
         return recruit_msg
@@ -293,13 +300,11 @@ class GameState:
         f1 = self.factions.get(faction1_id)
         f2 = self.factions.get(faction2_id)
         if not f1 or not f2:
-            # print(f"ERROR: Cannot set diplomatic status between {faction1_id} and {faction2_id}. One or both factions not found.")
             return
         if faction1_id == faction2_id:
              return
         f1.diplomatic_relations[faction2_id] = {"status": status, "relation_value": relation_value, "treaties": []}
         f2.diplomatic_relations[faction1_id] = {"status": status, "relation_value": relation_value, "treaties": []}
-        # print(f"DEBUG: Set diplomacy: {f1.short_name} and {f2.short_name} are now {status.value} (Relation: {relation_value})")
 
     def get_diplomacy_summary_str(self, focus_faction_id_param: Optional[str] = None) -> str:
         focus_faction_id = focus_faction_id_param if focus_faction_id_param else self.player_faction_id
@@ -309,16 +314,13 @@ class GameState:
         summary_lines = [f"--- Diplomatic Relations for {focus_faction.name} (ID: {focus_faction_id}) ---"]
         if not focus_faction.diplomatic_relations:
             summary_lines.append("  No diplomatic relations established with other major factions yet.")
-        
         all_other_factions = [f_id for f_id in self.factions if f_id != focus_faction_id]
         if not all_other_factions:
             summary_lines.append("  No other major factions exist in the game.")
             return "\n".join(summary_lines)
-
         for target_faction_id in sorted(all_other_factions):
             target_faction = self.factions.get(target_faction_id)
-            if not target_faction: continue # Should not happen if self.factions is consistent
-            
+            if not target_faction: continue
             relations = focus_faction.diplomatic_relations.get(target_faction_id)
             if relations:
                 status_val = relations.get("status")
@@ -326,25 +328,21 @@ class GameState:
                 relation_val = relations.get("relation_value", "N/A")
                 summary_lines.append(f"  - vs {target_faction.name} (ID: {target_faction_id}): {status_str}, Relation: {relation_val}")
             else:
-                # If no explicit relation, assume PEACE and 0 relation for display purposes
                 summary_lines.append(f"  - vs {target_faction.name} (ID: {target_faction_id}): {DiplomaticStatus.PEACE.value} (implicit), Relation: 0")
         return "\n".join(summary_lines)
 
     def declare_war_on_faction(self, declaring_faction_id: str, target_faction_id: str) -> str:
         declarer = self.factions.get(declaring_faction_id)
         target = self.factions.get(target_faction_id)
-
         if not declarer:
             return f"Error: Declaring faction ID '{declaring_faction_id}' not found."
         if not target:
             return f"Error: Target faction ID '{target_faction_id}' not found."
         if declaring_faction_id == target_faction_id:
             return f"Error: Cannot declare war on oneself ({declarer.name})."
-
         current_relation = declarer.diplomatic_relations.get(target_faction_id)
         if current_relation and current_relation.get("status") == DiplomaticStatus.WAR:
             return f"Error: {declarer.name} is already at war with {target.name}."
-        
         self.set_diplomatic_status(declaring_faction_id, target_faction_id, DiplomaticStatus.WAR, -100)
         return f"{declarer.name} has declared war on {target.name}! Relations are now {DiplomaticStatus.WAR.value} (-100)."
 
@@ -374,52 +372,30 @@ class GameState:
         original_owner_id = city_obj.current_owner_faction_id
         original_owner_name = self.factions[original_owner_id].short_name if original_owner_id and original_owner_id in self.factions else 'Unowned'
         battle_log.append(f"  City originally owned by: {original_owner_name}")
-        
         units_by_faction: Dict[str, List[ArmyUnit]] = {faction_id: [] for faction_id in factions_present}
         for unit in units_in_city:
             units_by_faction[unit.owning_faction_id].append(unit)
-        
-        # Determine attackers and defenders based on diplomatic status with city owner
-        # If city is unowned, or owner has no units, all present factions might fight each other (more complex, for later)
-        # For now, if city has an owner, they are the defender. Others are attackers if at WAR with owner.
-        
-        defender_faction_id = original_owner_id
-        # Attackers are those at WAR with the defender and present in the city
+        defender_faction_id = original_owner_id 
         attacker_faction_ids = []
-        if defender_faction_id and defender_faction_id in self.factions: # If there is a defender
+        if defender_faction_id and defender_faction_id in self.factions: 
             defender_faction_obj = self.factions[defender_faction_id]
             for fid in factions_present:
-                if fid != defender_faction_id and fid in defender_faction_obj.diplomatic_relations and \ 
+                if fid != defender_faction_id and fid in defender_faction_obj.diplomatic_relations and \
                    defender_faction_obj.diplomatic_relations[fid].get("status") == DiplomaticStatus.WAR:
                     attacker_faction_ids.append(fid)
-        elif not defender_faction_id: # Unowned city, all factions present are potential belligerents
-            # Simplification: if unowned, first faction in list becomes temp defender, others attackers IF at war with them
-            # This needs better rules for multi-way battles in neutral/unowned cities.
-            # For now, if unowned, we might skip complex battle or have a simpler free-for-all. 
-            # Let's assume for now: if unowned, first listed faction becomes pseudo-defender, others are attackers.
-            # This isn't great. Let's assume for now battles only trigger if there IS an owner.
-            if not factions_present: # Should be caught by earlier check, but for safety
-                return battle_log
-            # Fallback: if unowned city has multiple factions, they are all hostile to each other for this battle? (too complex for v1)
-            # For now, if city is unowned, any two factions present that are at WAR with each other might fight.
-            # Let's simplify: If unowned, and two factions are present AND at WAR, they fight.
-            # Still, the defender/attacker dynamic is tricky. Defaulting to no battle if unowned for this iteration.
-             battle_log.append(f"  City {city_obj.name} is Unowned. Complex battle resolution for unowned cities not yet implemented. Skipping.")
+        elif not defender_faction_id: 
+             battle_log.append(f"  City {city_obj.name} is Unowned. Complex battle resolution not yet implemented. Skipping.")
              return battle_log
-
-        if not attacker_faction_ids and defender_faction_id: # Defender exists, but no one at WAR with them is present
+        if not attacker_faction_ids and defender_faction_id:
             battle_log.append(f"  Units from multiple factions present, but no factions at WAR with owner {original_owner_name}. No battle.")
             return battle_log
-        if not defender_faction_id and attacker_faction_ids: # Attackers present but city was unowned and we skipped above.
-             battle_log.append(f"  Attackers present in unowned city {city_obj.name}, but battle resolution for this not yet fully defined. Skipping.")
+        if not defender_faction_id and attacker_faction_ids:
+             battle_log.append(f"  Attackers present in unowned city {city_obj.name}, but battle resolution not defined. Skipping.")
              return battle_log
-        if not defender_faction_id and not attacker_faction_ids: # Should be caught by len(factions_present) <=1
+        if not defender_faction_id and not attacker_faction_ids:
             return battle_log
-
         battle_log.append(f"  Defending Faction: {self.factions[defender_faction_id].short_name if defender_faction_id else 'N/A'}")
         battle_log.append(f"  Attacking Factions: {[self.factions[fid].short_name for fid in attacker_faction_ids if fid in self.factions]}")
-
-        # Combat Round Logic (as before, but now attackers are only those at WAR with defender)
         if defender_faction_id and defender_faction_id in units_by_faction:
             current_defender_units = [u for u in units_by_faction[defender_faction_id] if u.soldiers > 0]
             all_attacker_units_for_targeting = [u for fid in attacker_faction_ids for u in units_by_faction.get(fid, []) if u.soldiers > 0]
@@ -478,18 +454,9 @@ class GameState:
                 battle_log.append(f"  All forces in {city_obj.name} have been wiped out. City remains with {original_owner_name}.")
         elif original_owner_id: 
              battle_log.append(f"  {original_owner_name} holds {city_obj.name}.")
-        elif not original_owner_id: # Unowned city, check if any single ATTACKING faction (previously defined) remains
-            surviving_factions_in_unowned_city_at_war_with_each_other_or_st : Dict[str, int] = {}
-            for fid_attacker in attacker_faction_ids: # Only consider those who were part of initial conflict logic for unowned cities if we get here
-                faction_units = [u for u in units_by_faction.get(fid_attacker, []) if u.unit_id in self.army_units and self.army_units[u.unit_id].soldiers > 0]
-                if faction_units:
-                    surviving_factions_in_unowned_city_at_war_with_each_other_or_st[fid_attacker] = sum(u.soldiers for u in faction_units)
-            if len(surviving_factions_in_unowned_city_at_war_with_each_other_or_st) == 1:
-                new_owner_id = list(surviving_factions_in_unowned_city_at_war_with_each_other_or_st.keys())[0]
-                battle_log.append(f"  {city_obj.name} was unowned and is now claimed by {self.factions[new_owner_id].name}!")
-                self.assign_city_to_faction(city_obj.city_id, new_owner_id)
-            else:
-                battle_log.append(f"  {city_obj.name} remains unowned or contested among multiple survivors.")
+        elif not original_owner_id:
+            # This case for unowned city should ideally be handled by the earlier skip or a more complex free-for-all logic
+            battle_log.append(f"  {city_obj.name} remains unowned or contested (battle resolution in unowned city incomplete).")
         battle_log.append(f"--- Battle in {city_obj.name} resolved. ---")
         return battle_log
 
@@ -508,54 +475,125 @@ class GameState:
             print("=========================")
 
     def _process_ai_faction_turn(self, faction_id: str):
-        faction = self.factions.get(faction_id)
-        if not faction or faction_id == self.player_faction_id:
+        faction_obj = self.factions.get(faction_id)
+        if not faction_obj or faction_id == self.player_faction_id:
             return
-        ai_log = [f"\n--- AI Turn: {faction.short_name} (ID: {faction_id}) ---"]
-        action_taken = False
-        ai_units_in_cities = [u for u_id in faction.army_units_list_ids 
-                              if (u := self.army_units.get(u_id)) and 
-                                 u.current_location_city_id and 
-                                 u.soldiers > 0]
-        if not ai_units_in_cities:
-            ai_log.append(f"  AI {faction.short_name} has no units in any city to move.")
+
+        ai_log = [f"\n--- AI Turn: {faction_obj.short_name} (ID: {faction_id}) ---"]
+        actions_taken_this_turn = 0
+        MAX_AI_UNIT_MOVES_PER_TURN = 2 # Limit AI actions per turn for now
+
+        # Gather all movable units for this AI
+        ai_faction_units = [u for u_id in faction_obj.army_units_list_ids 
+                            if (u := self.army_units.get(u_id)) and 
+                               u.current_location_city_id and 
+                               u.soldiers > 0]
+        random.shuffle(ai_faction_units) # Shuffle to vary which units act if many are available
+
+        if not ai_faction_units:
+            ai_log.append(f"  AI {faction_obj.short_name} has no units available to act.")
         else:
-            unit_to_move = random.choice(ai_units_in_cities)
-            current_city_id = unit_to_move.current_location_city_id
-            current_city_name = self.game_map.cities[current_city_id].name if current_city_id in self.game_map.cities else current_city_id
-            target_cities_war = []
-            target_cities_other = []
-            if current_city_id and current_city_id in self.game_map.adjacency_list:
-                for adj_city_id in self.game_map.adjacency_list[current_city_id]:
+            # --- 1. Defensive Moves --- 
+            threatened_cities = []
+            for city_id_owned in faction_obj.controlled_cities_ids:
+                city_owned = self.game_map.get_city(city_id_owned)
+                if not city_owned: continue
+                for unit_in_city_id in city_owned.garrisoned_units:
+                    unit_in_city = self.army_units.get(unit_in_city_id)
+                    if unit_in_city and unit_in_city.owning_faction_id != faction_id and \
+                       faction_obj.diplomatic_relations.get(unit_in_city.owning_faction_id, {}).get("status") == DiplomaticStatus.WAR:
+                        threatened_cities.append(city_id_owned)
+                        break
+            
+            if threatened_cities:
+                # Simplistic: pick first threatened city, find nearest strongest unit to send
+                # TODO: Could be more sophisticated (e.g. evaluate threat level, proximity of multiple units)
+                target_defense_city_id = random.choice(threatened_cities) # For now, random threatened city
+                ai_log.append(f"  AI {faction_obj.short_name} identified threat in {target_defense_city_id}. Attempting to reinforce.")
+                best_defender_unit: Optional[ArmyUnit] = None
+                # Find strongest unit in an adjacent city that can move to defend
+                # This is a very basic search for a defender.
+                possible_defenders = []
+                for adj_city_id in self.game_map.adjacency_list.get(target_defense_city_id, set()):
                     adj_city_obj = self.game_map.get_city(adj_city_id)
-                    if not adj_city_obj: continue
-                    if adj_city_obj.current_owner_faction_id and \
-                       adj_city_obj.current_owner_faction_id != faction_id and \
-                       adj_city_obj.current_owner_faction_id in faction.diplomatic_relations and \
-                       faction.diplomatic_relations[adj_city_obj.current_owner_faction_id].get("status") == DiplomaticStatus.WAR:
-                        target_cities_war.append(adj_city_id)
-                    elif adj_city_obj.current_owner_faction_id != faction_id : # Move to non-enemy cities too
-                        target_cities_other.append(adj_city_id)
-                chosen_target_city_id = None
-                if target_cities_war:
-                    chosen_target_city_id = random.choice(target_cities_war)
-                    ai_log.append(f"  AI {faction.short_name} unit {unit_to_move.unit_id} in {current_city_name} is targeting enemy city: {chosen_target_city_id}!")
-                elif target_cities_other:
-                    chosen_target_city_id = random.choice(target_cities_other)
-                    ai_log.append(f"  AI {faction.short_name} unit {unit_to_move.unit_id} in {current_city_name} randomly targets adjacent city: {chosen_target_city_id}.")
-                if chosen_target_city_id:
-                    move_result = self.move_unit(unit_to_move.unit_id, chosen_target_city_id, acting_faction_id=faction_id)
-                    ai_log.append(f"    Move Result: {move_result}")
-                    action_taken = True
+                    if adj_city_obj and adj_city_obj.current_owner_faction_id == faction_id: # Own adjacent city
+                        for unit_id_in_adj_city in adj_city_obj.garrisoned_units:
+                            unit_in_adj = self.army_units.get(unit_id_in_adj_city)
+                            if unit_in_adj and unit_in_adj.owning_faction_id == faction_id and unit_in_adj.soldiers > 0:
+                                possible_defenders.append(unit_in_adj)
+                if possible_defenders:
+                    best_defender_unit = max(possible_defenders, key=lambda u: u.soldiers, default=None)
+                
+                if best_defender_unit and actions_taken_this_turn < MAX_AI_UNIT_MOVES_PER_TURN:
+                    ai_log.append(f"  AI {faction_obj.short_name} sending unit {best_defender_unit.unit_id} from {best_defender_unit.current_location_city_id} to defend {target_defense_city_id}.")
+                    move_result = self.move_unit(best_defender_unit.unit_id, target_defense_city_id, acting_faction_id=faction_id)
+                    ai_log.append(f"    Defense Move Result: {move_result}")
+                    actions_taken_this_turn += 1
+                    # Remove from general movable list if it moved
+                    ai_faction_units = [u for u in ai_faction_units if u.unit_id != best_defender_unit.unit_id]
                 else:
-                    ai_log.append(f"  AI {faction.short_name}: Unit {unit_to_move.unit_id} in {current_city_name} has no valid adjacent cities to move to (or only own cities adjacent).")
-            else:
-                ai_log.append(f"  AI {faction.short_name}: Unit {unit_to_move.unit_id} in {current_city_name} - city has no adjacencies defined.")
-        if not action_taken and not ai_units_in_cities:
-             pass 
-        elif not action_taken and ai_units_in_cities:
-            ai_log.append(f"  AI {faction.short_name} took no action with its units this turn.")
-        if len(ai_log) > 1:
+                    ai_log.append(f"  AI {faction_obj.short_name} could not find a suitable unit to send for defense of {target_defense_city_id} or already acted enough.")
+
+            # --- 2. Offensive / General Moves (if actions left) ---
+            units_moved_this_offensive_phase = 0
+            for unit_to_move in ai_faction_units: # Iterate through remaining (shuffled) units
+                if actions_taken_this_turn >= MAX_AI_UNIT_MOVES_PER_TURN: break
+                if unit_to_move.soldiers <= 0: continue # Skip already destroyed units
+
+                current_city_id = unit_to_move.current_location_city_id
+                current_city_name = self.game_map.cities[current_city_id].name if current_city_id and current_city_id in self.game_map.cities else "Unknown"
+                
+                target_cities_war = []
+                target_cities_peaceful_neutral = [] # Cities owned by non-war, non-allied factions or unowned
+
+                if current_city_id and current_city_id in self.game_map.adjacency_list:
+                    for adj_city_id in self.game_map.adjacency_list[current_city_id]:
+                        adj_city_obj = self.game_map.get_city(adj_city_id)
+                        if not adj_city_obj: continue
+
+                        target_owner_id = adj_city_obj.current_owner_faction_id
+                        # Check diplomatic status with the target city's owner
+                        is_enemy_city = False
+                        if target_owner_id and target_owner_id != faction_id:
+                            relation = faction_obj.diplomatic_relations.get(target_owner_id)
+                            if relation and relation.get("status") == DiplomaticStatus.WAR:
+                                is_enemy_city = True
+                        
+                        if is_enemy_city:
+                            target_cities_war.append(adj_city_id)
+                        elif not target_owner_id or (target_owner_id != faction_id and 
+                            (not faction_obj.diplomatic_relations.get(target_owner_id) or 
+                             faction_obj.diplomatic_relations.get(target_owner_id, {}).get("status") == DiplomaticStatus.PEACE)):
+                            # Target unowned or owned by peaceful non-allied faction
+                             target_cities_peaceful_neutral.append(adj_city_id)
+                    
+                    chosen_target_city_id = None
+                    if target_cities_war: # Priority 1: Attack adjacent enemy cities
+                        chosen_target_city_id = random.choice(target_cities_war)
+                        ai_log.append(f"  AI {faction_obj.short_name} unit {unit_to_move.unit_id} in {current_city_name} is TARGETING ENEMY city: {chosen_target_city_id}!")
+                    elif target_cities_peaceful_neutral: # Priority 2: Move to adjacent neutral/peaceful non-allied city
+                        chosen_target_city_id = random.choice(target_cities_peaceful_neutral)
+                        ai_log.append(f"  AI {faction_obj.short_name} unit {unit_to_move.unit_id} in {current_city_name} randomly targets adjacent non-hostile city: {chosen_target_city_id}.")
+                    # Else, no valid non-self cities to move to, or only allied cities (which we might avoid moving into for now)
+
+                    if chosen_target_city_id:
+                        move_result = self.move_unit(unit_to_move.unit_id, chosen_target_city_id, acting_faction_id=faction_id)
+                        ai_log.append(f"    Move Result: {move_result}")
+                        actions_taken_this_turn += 1
+                        units_moved_this_offensive_phase +=1
+                        if units_moved_this_offensive_phase >= (MAX_AI_UNIT_MOVES_PER_TURN - actions_taken_this_turn + units_moved_this_offensive_phase): # ensure total moves dont exceed max
+                            break
+                    elif not target_cities_war and not target_cities_peaceful_neutral and actions_taken_this_turn == 0 : # Only log if no other action has been taken by this AI this turn
+                        ai_log.append(f"  AI {faction_obj.short_name}: Unit {unit_to_move.unit_id} in {current_city_name} has no valid non-allied/non-self adjacent cities to move to.")
+                elif actions_taken_this_turn == 0:
+                     ai_log.append(f"  AI {faction_obj.short_name}: Unit {unit_to_move.unit_id} in {current_city_name} - city has no adjacencies defined.")
+        
+        if actions_taken_this_turn == 0 and ai_units_in_cities: # Had units, but couldn't make any move (defensive or offensive)
+            ai_log.append(f"  AI {faction_obj.short_name} took no unit actions this turn (e.g., no valid moves). ")
+        elif actions_taken_this_turn == 0 and not ai_units_in_cities: # No units to begin with
+            ai_log.append(f"  AI {faction_obj.short_name} has no units to command this turn.")
+
+        if len(ai_log) > 1: # Only print if there's more than the header
             for entry in ai_log:
                 print(entry)
 
