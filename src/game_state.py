@@ -210,6 +210,9 @@ class GameState:
         if not unit:
             return f"Error: Unit with ID '{unit_id}' not found."
 
+        if unit.owning_faction_id != self.player_faction_id:
+            return f"Error: Unit {unit_id} ({unit.unit_type_id}) is not yours to command. Belongs to {unit.owning_faction_id}."
+
         target_city = self.game_map.get_city(target_city_id)
         if not target_city:
             return f"Error: Target city with ID '{target_city_id}' not found."
@@ -265,5 +268,7 @@ class GameState:
                 if city:
                     income += city.economy // 10 # Simple income based on economy
             faction_obj.treasury += income
-            print(f"{faction_obj.short_name} received {income} gold. Treasury: {faction_obj.treasury}")
+            # Only print income for player faction to reduce noise, or make it a debug option later
+            if faction_obj.faction_id == self.player_faction_id:
+                 print(f"{faction_obj.short_name} received {income} gold. Treasury: {faction_obj.treasury}")
 
