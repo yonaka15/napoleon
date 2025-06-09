@@ -45,7 +45,7 @@ def setup_initial_state() -> GameState:
     game.add_faction(britain)
     game.add_faction(austria)
     game.add_faction(prussia)
-    game.player_faction_id = "france" # Player controls France
+    game.player_faction_id = "france"
 
     # 5. Assign cities to factions
     game.assign_city_to_faction("paris", "france")
@@ -59,11 +59,11 @@ def setup_initial_state() -> GameState:
     napoleon = General(general_id="napoleon", name="Napoleon Bonaparte", faction_id="france", command=95, attack_skill=90, defense_skill=80)
     france.leader_general_id = "napoleon"
     davout = General(general_id="davout", name="Louis Davout", faction_id="france", command=85, attack_skill=80, defense_skill=75)
-    nelson = General(general_id="nelson", name="Horatio Nelson", faction_id="britain", command=90)
+    nelson = General(general_id="nelson", name="Horatio Nelson", faction_id="britain", command=90, attack_skill=70, defense_skill=60) # Naval skills different
     britain.leader_general_id = "nelson"
-    archduke_charles = General(general_id="archduke_charles", name="Archduke Charles", faction_id="austria", command=80)
+    archduke_charles = General(general_id="archduke_charles", name="Archduke Charles", faction_id="austria", command=80, attack_skill=75, defense_skill=80)
     austria.leader_general_id = "archduke_charles"
-    blucher = General(general_id="blucher", name="Gebhard von Blucher", faction_id="prussia", command=82)
+    blucher = General(general_id="blucher", name="Gebhard von Blucher", faction_id="prussia", command=82, attack_skill=80, defense_skill=70)
     prussia.leader_general_id = "blucher"
 
     game.add_general(napoleon)
@@ -80,11 +80,16 @@ def setup_initial_state() -> GameState:
     game.place_general_in_city("blucher", "berlin")
 
     # 8. Create Army Units and add to game state 
-    fra_corps_1 = ArmyUnit(unit_id="fra_corps_1", unit_type_id=UnitType.INFANTRY_CORPS.value, owning_faction_id="france", soldiers=25000, leading_general_id="davout")
-    fra_guard = ArmyUnit(unit_id="fra_guard", unit_type_id=UnitType.GUARD_CORPS.value, owning_faction_id="france", soldiers=15000, leading_general_id="napoleon")
-    bri_fleet_1 = ArmyUnit(unit_id="bri_fleet_1", unit_type_id="fleet_channel", owning_faction_id="britain", soldiers=100) 
-    aus_army_1 = ArmyUnit(unit_id="aus_army_1", unit_type_id="infantry_division", owning_faction_id="austria", soldiers=30000, leading_general_id="archduke_charles")
-    pru_corps_1 = ArmyUnit(unit_id="pru_corps_1", unit_type_id=UnitType.INFANTRY_CORPS.value, owning_faction_id="prussia", soldiers=22000, leading_general_id="blucher")
+    ut_inf_corps = UnitType.INFANTRY_CORPS
+    ut_guard_corps = UnitType.GUARD_CORPS
+    ut_inf_div = UnitType.INFANTRY_DIVISION # for Austria
+    ut_fleet = UnitType.FLEET_CHANNEL
+
+    fra_corps_1 = ArmyUnit(unit_id="fra_corps_1", unit_type_id=ut_inf_corps.type_id, base_attack=ut_inf_corps.base_attack, base_defense=ut_inf_corps.base_defense, owning_faction_id="france", soldiers=ut_inf_corps.default_soldiers, leading_general_id="davout")
+    fra_guard = ArmyUnit(unit_id="fra_guard", unit_type_id=ut_guard_corps.type_id, base_attack=ut_guard_corps.base_attack, base_defense=ut_guard_corps.base_defense, owning_faction_id="france", soldiers=ut_guard_corps.default_soldiers, leading_general_id="napoleon")
+    bri_fleet_1 = ArmyUnit(unit_id="bri_fleet_1", unit_type_id=ut_fleet.type_id, base_attack=ut_fleet.base_attack, base_defense=ut_fleet.base_defense, owning_faction_id="britain", soldiers=ut_fleet.default_soldiers, leading_general_id="nelson") 
+    aus_army_1 = ArmyUnit(unit_id="aus_army_1", unit_type_id=ut_inf_div.type_id, base_attack=ut_inf_div.base_attack, base_defense=ut_inf_div.base_defense, owning_faction_id="austria", soldiers=ut_inf_div.default_soldiers, leading_general_id="archduke_charles")
+    pru_corps_1 = ArmyUnit(unit_id="pru_corps_1", unit_type_id=ut_inf_corps.type_id, base_attack=ut_inf_corps.base_attack, base_defense=ut_inf_corps.base_defense, owning_faction_id="prussia", soldiers=22000, leading_general_id="blucher") # Slightly different soldier count for variety
 
     game.add_army_unit(fra_corps_1)
     game.add_army_unit(fra_guard)
@@ -131,7 +136,7 @@ def game_loop(game_state: GameState):
             game_state.display_summary()
         elif action == "next" and len(parts) > 1 and parts[1] == "turn":
             game_state.next_turn()
-            game_state.display_summary() # Display summary after turn and combat
+            game_state.display_summary() 
         elif action == "info" and len(parts) > 2:
             sub_command = parts[1]
             target_id = parts[2]
@@ -174,7 +179,7 @@ def game_loop(game_state: GameState):
 
 
 if __name__ == "__main__":
-    print("Setting up Napoleon Game Prototype v0.1.8 (with basic auto combat resolution)...")
+    print("Setting up Napoleon Game Prototype v0.1.9 (combat with general & terrain effects)...")
     current_game_state = setup_initial_state()
     print("\n--- Initial Game State Summary ---")
     current_game_state.display_summary()
